@@ -49,34 +49,38 @@ function process_pods() {
     local pattern=$2
 
     # Executa o comando kubectl e processa a saída JSON
-    kubectl get pods -n $namespace -o json | jq -c --arg pattern "$pattern" '.items[] | select(.metadata.name | contains($pattern)) | {name: .metadata.name, status: .status.phase, creationTime: .metadata.creationTimestamp}' | while read -r pod; do
+    kubectl get pods -n $namespace -o json | jq -c '.items[] | {name: .metadata.name, status: .status.phase, creationTime: .metadata.creationTimestamp}' | while read -r pod; do
         POD_NAME=$(echo $pod | jq -r '.name')
-        POD_STATUS=$(echo $pod | jq -r '.status')
-        CREATION_TIME=$(echo $pod | jq -r '.creationTime')
-        
-        # Converte a data de criação para segundos desde Epoch
-        CREATION_TIME_EPOCH=$(date -d "$CREATION_TIME" +%s)
-        
-        # Calcula a diferença de tempo
-        TIME_DIFF=$((CURRENT_TIME - CREATION_TIME_EPOCH))
-        
-        # Verifica se o pod foi criado nas últimas 24 horas (86400 segundos)
-        if [ $TIME_DIFF -lt 86400 ]; then
-            RECENT_CHANGE="Yes"
-        else
-            RECENT_CHANGE="No"
-        fi
-        
-        # Conta a quantidade de linhas com a palavra "ERRO" nos logs do pod
-        ERROR_COUNT=$(kubectl logs -n $namespace $POD_NAME | grep -c "ERRO")
-        
-        # Adiciona as informações do pod ao arquivo CSV
-        echo "$namespace;$POD_NAME;$POD_STATUS;$CREATION_TIME;$RECENT_CHANGE;$ERROR_COUNT" >> $CSV_FILE
-        
-        # Incrementa contagem de pods
-        TOTAL_PODS=$((TOTAL_PODS+1))
-        if [[ "$POD_STATUS" == "Running" ]]; then
-            TOTAL_OK=$((TOTAL_OK+1))
+
+        # Verifica se o nome do pod corresponde ao padrão atual
+        if [[ $POD_NAME == *$pattern* ]]; then
+            POD_STATUS=$(echo $pod | jq -r '.status')
+            CREATION_TIME=$(echo $pod | jq -r '.creationTime')
+            
+            # Converte a data de criação para segundos desde Epoch
+            CREATION_TIME_EPOCH=$(date -d "$CREATION_TIME" +%s)
+            
+            # Calcula a diferença de tempo
+            TIME_DIFF=$((CURRENT_TIME - CREATION_TIME_EPOCH))
+            
+            # Verifica se o pod foi criado nas últimas 24 horas (86400 segundos)
+            if [ $TIME_DIFF -lt 86400 ]; then
+                RECENT_CHANGE="Yes"
+            else
+                RECENT_CHANGE="No"
+            fi
+            
+            # Conta a quantidade de linhas com a palavra "ERRO" nos logs do pod
+            ERROR_COUNT=$(kubectl logs -n $namespace $POD_NAME | grep -c "ERRO")
+            
+            # Adiciona as informações do pod ao arquivo CSV
+            echo "$namespace;$POD_NAME;$POD_STATUS;$CREATION_TIME;$RECENT_CHANGE;$ERROR_COUNT" >> $CSV_FILE
+            
+            # Incrementa contagem de pods
+            TOTAL_PODS=$((TOTAL_PODS+1))
+            if [[ "$POD_STATUS" == "Running" ]]; then
+                TOTAL_OK=$((TOTAL_OK+1))
+            fi
         fi
     done
 }

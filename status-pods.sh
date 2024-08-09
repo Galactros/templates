@@ -42,7 +42,7 @@ fi
 CSV_FILE="pods_status.csv"
 
 # Inicializa o arquivo CSV com o cabeçalho
-echo "Namespace;Pod Name;Status;Creation Time;Recent Change;Error Count" > $CSV_FILE
+echo "Namespace;Pod Name;Status;Creation Time;Recent Change;Error Count;CPU Usage;Memory Usage" > $CSV_FILE
 
 # Inicializa variáveis para contagem de status
 TOTAL_PODS=0
@@ -76,8 +76,13 @@ function process_pods() {
         # Conta a quantidade de linhas com a palavra "ERRO" nos logs do pod
         ERROR_COUNT=$(kubectl logs -n $namespace $POD_NAME | grep -c "ERRO")
         
+        # Obtém o uso de CPU e Memória
+        RESOURCE_USAGE=$(kubectl top pod $POD_NAME -n $namespace --no-headers)
+        CPU_USAGE=$(echo $RESOURCE_USAGE | awk '{print $2}')
+        MEMORY_USAGE=$(echo $RESOURCE_USAGE | awk '{print $3}')
+        
         # Adiciona as informações do pod ao CSV
-        echo "$namespace;$POD_NAME;$POD_STATUS;$CREATION_TIME;$RECENT_CHANGE;$ERROR_COUNT" >> $CSV_FILE
+        echo "$namespace;$POD_NAME;$POD_STATUS;$CREATION_TIME;$RECENT_CHANGE;$ERROR_COUNT;$CPU_USAGE;$MEMORY_USAGE" >> $CSV_FILE
         
         # Incrementa contagem de pods
         TOTAL_PODS=$((TOTAL_PODS+1))

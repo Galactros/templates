@@ -36,7 +36,7 @@ IFS=',' read -r -a POD_PATTERNS_ARRAY <<< "$POD_PATTERNS"
 CSV_FILE="pods_status.csv"
 
 # Inicializa o arquivo CSV com o cabeçalho
-echo "Namespace,Pod Name,Status,Creation Time,Recent Change,Error Count" > $CSV_FILE
+echo "Namespace;Pod Name;Status;Creation Time;Recent Change;Error Count" > $CSV_FILE
 
 # Inicializa variáveis para contagem de status
 TOTAL_PODS=0
@@ -70,7 +70,8 @@ function process_pods() {
         # Conta a quantidade de linhas com a palavra "ERRO" nos logs do pod
         ERROR_COUNT=$(kubectl logs -n $namespace $POD_NAME | grep -c "ERRO")
         
-        echo "$namespace,$POD_NAME,$POD_STATUS,$CREATION_TIME,$RECENT_CHANGE,$ERROR_COUNT" >> $CSV_FILE
+        # Adiciona as informações do pod ao CSV
+        echo "$namespace;$POD_NAME;$POD_STATUS;$CREATION_TIME;$RECENT_CHANGE;$ERROR_COUNT" >> $CSV_FILE
         
         # Incrementa contagem de pods
         TOTAL_PODS=$((TOTAL_PODS+1))
@@ -94,7 +95,7 @@ else
     OVERALL_STATUS="Some Pods are not Running"
 fi
 echo "" >> $CSV_FILE
-echo "Overall Status," >> $CSV_FILE
+echo "Overall Status;" >> $CSV_FILE
 echo $OVERALL_STATUS >> $CSV_FILE
 
 echo "CSV gerado em $CSV_FILE"

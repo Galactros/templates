@@ -32,6 +32,12 @@ fi
 IFS=',' read -r -a NAMESPACES_ARRAY <<< "$NAMESPACES"
 IFS=',' read -r -a POD_PATTERNS_ARRAY <<< "$POD_PATTERNS"
 
+# Verifica se o tamanho dos arrays é igual
+if [ "${#NAMESPACES_ARRAY[@]}" -ne "${#POD_PATTERNS_ARRAY[@]}" ]; then
+    echo "Erro: O número de namespaces e padrões de pods deve ser igual."
+    exit 1
+fi
+
 # Define o nome do arquivo CSV
 CSV_FILE="pods_status.csv"
 
@@ -81,11 +87,9 @@ function process_pods() {
     done
 }
 
-# Processa cada namespace e pod pattern
-for namespace in "${NAMESPACES_ARRAY[@]}"; do
-    for pattern in "${POD_PATTERNS_ARRAY[@]}"; do
-        process_pods "$namespace" "$pattern"
-    done
+# Processa as listas de namespaces e pod patterns em pares
+for i in "${!NAMESPACES_ARRAY[@]}"; do
+    process_pods "${NAMESPACES_ARRAY[$i]}" "${POD_PATTERNS_ARRAY[$i]}"
 done
 
 # Adiciona o resultado geral no final do CSV

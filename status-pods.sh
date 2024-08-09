@@ -54,8 +54,8 @@ function process_pods() {
     local namespace=$1
     local pattern=$2
 
-    # Executa o comando kubectl e processa a saída JSON
-    kubectl get pods -n $namespace -o json | jq -c --arg pattern "$pattern" '.items[] | select(.metadata.name | contains($pattern)) | {name: .metadata.name, status: .status.phase, creationTime: .metadata.creationTimestamp}' | while read -r pod; do
+    # Executa o comando oc e processa a saída JSON
+    oc get pods -n $namespace -o json | jq -c --arg pattern "$pattern" '.items[] | select(.metadata.name | contains($pattern)) | {name: .metadata.name, status: .status.phase, creationTime: .metadata.creationTimestamp}' | while read -r pod; do
         POD_NAME=$(echo $pod | jq -r '.name')
         POD_STATUS=$(echo $pod | jq -r '.status')
         CREATION_TIME=$(echo $pod | jq -r '.creationTime')
@@ -74,10 +74,10 @@ function process_pods() {
         fi
         
         # Conta a quantidade de linhas com a palavra "ERRO" nos logs do pod
-        ERROR_COUNT=$(kubectl logs -n $namespace $POD_NAME | grep -c "ERRO")
+        ERROR_COUNT=$(oc logs -n $namespace $POD_NAME | grep -c "ERRO")
         
         # Obtém o uso de CPU e Memória
-        RESOURCE_USAGE=$(kubectl top pod $POD_NAME -n $namespace --no-headers)
+        RESOURCE_USAGE=$(oc adm top pod $POD_NAME -n $namespace --no-headers --use-protocol-buffers)
         CPU_USAGE=$(echo $RESOURCE_USAGE | awk '{print $2}')
         MEMORY_USAGE=$(echo $RESOURCE_USAGE | awk '{print $3}')
         

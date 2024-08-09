@@ -42,7 +42,7 @@ fi
 CSV_FILE="pods_status.csv"
 
 # Inicializa o arquivo CSV com o cabeçalho
-echo "Namespace;Pod Name;Status;Creation Time;Recent Change;Error Count;CPU Usage;Memory Usage" > $CSV_FILE
+printf "%-20s %-25s %-15s %-25s %-15s %-15s %-10s %-10s\n" "Namespace" "Pod Name" "Status" "Creation Time" "Recent Change" "Error Count" "CPU Usage" "Memory Usage" > $CSV_FILE
 
 # Inicializa variáveis para contagem de status
 TOTAL_PODS=0
@@ -82,7 +82,7 @@ function process_pods() {
         MEMORY_USAGE=$(echo $RESOURCE_USAGE | awk '{print $3}')
         
         # Adiciona as informações do pod ao CSV
-        echo "$namespace;$POD_NAME;$POD_STATUS;$CREATION_TIME;$RECENT_CHANGE;$ERROR_COUNT;$CPU_USAGE;$MEMORY_USAGE" >> $CSV_FILE
+        printf "%-20s %-25s %-15s %-25s %-15s %-15s %-10s %-10s\n" "$namespace" "$POD_NAME" "$POD_STATUS" "$CREATION_TIME" "$RECENT_CHANGE" "$ERROR_COUNT" "$CPU_USAGE" "$MEMORY_USAGE" >> $CSV_FILE
         
         # Incrementa contagem de pods
         TOTAL_PODS=$((TOTAL_PODS+1))
@@ -104,7 +104,6 @@ else
     OVERALL_STATUS="Some Pods are not Running"
 fi
 echo "" >> $CSV_FILE
-echo "Overall Status;" >> $CSV_FILE
-echo $OVERALL_STATUS >> $CSV_FILE
+printf "%-135s\n" "Overall Status; $OVERALL_STATUS" >> $CSV_FILE
 
-echo "CSV gerado em $CSV_FILE"
+echo "CSV formatado gerado em $CSV_FILE"

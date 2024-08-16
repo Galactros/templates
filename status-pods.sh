@@ -42,7 +42,7 @@ fi
 CSV_FILE="pods_status.csv"
 
 # Inicializa o arquivo CSV com o cabeçalho
-echo "Namespace;Pod Name;Status;Creation Time;Recent Change;Error Count;CPU Usage;Memory Usage" > $CSV_FILE
+echo "Namespace;Pod Name;Status;Creation Time;Recent Change;Error Count;CPU Usage;Memory Usage;CPU Limit;Memory Limit;CPU Usage vs Limit;Memory Usage vs Limit" > $CSV_FILE
 
 # Inicializa variáveis para contagem de status
 TOTAL_PODS=0
@@ -55,7 +55,7 @@ function process_pods() {
     local pattern=$2
 
     # Executa o comando oc e processa a saída JSON
-    oc get pods -n $namespace -o json | jq -c --arg pattern "$pattern" '.items[] | select(.metadata.name | contains($pattern)) | {name: .metadata.name, status: .status.phase, creationTime: .metadata.creationTimestamp}' | while read -r pod; do
+    oc get pods -n $namespace -o json | jq -c --arg pattern "$pattern" '.items[] | select(.metadata.name | contains($pattern)) | {name: .metadata.name, status: .status.phase, creationTime: .metadata.creationTimestamp, containers: .spec.containers}' | while read -r pod; do
         POD_NAME=$(echo $pod | jq -r '.name')
         POD_STATUS=$(echo $pod | jq -r '.status')
         CREATION_TIME=$(echo $pod | jq -r '.creationTime')
@@ -81,8 +81,31 @@ function process_pods() {
         CPU_USAGE=$(echo $RESOURCE_USAGE | awk '{print $2}')
         MEMORY_USAGE=$(echo $RESOURCE_USAGE | awk '{print $3}')
         
+        # Obtém os limites de CPU e memória para o pod
+        CPU_LIMIT=$(echo $pod | jq -r '.containers[].resources.limits.cpu // "N/A"')
+        MEMORY_LIMIT=$(echo $pod | jq -r '.containers[].resources.limits.memory // "N/A"')
+
+        # Converte os valores de uso e limites para um formato comparável (milicores e bytes)
+        CPU_USAGE_MILICORES=$(echo $CPU_USAGE | sed 's/m//')
+        CPU_LIMIT_MILICORES=$(echo $CPU_LIMIT | sed 's/m//')
+        MEMORY_USAGE_BYTES=$(echo $MEMORY_USAGE | numfmt --from=iec)
+        MEMORY_LIMIT_BYTES=$(echo $MEMORY_LIMIT | numfmt --from=iec)
+        
+        # Calcula a porcentagem de uso em relação aos limites
+        if [ "$CPU_LIMIT" != "N/A" ]; then
+            CPU_PERCENTAGE=$(awk "BEGIN {printf \"%.2f\", ($CPU_USAGE_MILICORES / $CPU_LIMIT_MILICORES) * 100}")
+        else
+            CPU_PERCENTAGE="N/A"
+        fi
+
+        if [ "$MEMORY_LIMIT" != "N/A" ]; then
+            MEMORY_PERCENTAGE=$(awk "BEGIN {printf \"%.2f\", ($MEMORY_USAGE_BYTES / $MEMORY_LIMIT_BYTES) * 100}")
+        else
+            MEMORY_PERCENTAGE="N/A"
+        fi
+        
         # Adiciona as informações do pod ao CSV
-        echo "$namespace;$POD_NAME;$POD_STATUS;$CREATION_TIME;$RECENT_CHANGE;$ERROR_COUNT;$CPU_USAGE;$MEMORY_USAGE" >> $CSV_FILE
+        echo "$namespace;$POD_NAME;$POD_STATUS;$CREATION_TIME;$RECENT_CHANGE;$ERROR_COUNT;$CPU_USAGE;$MEMORY_USAGE;$CPU_LIMIT;$MEMORY_LIMIT;$CPU_PERCENTAGE%;$MEMORY_PERCENTAGE%" >> $CSV_FILE
         
         # Incrementa contagem de pods
         TOTAL_PODS=$((TOTAL_PODS+1))

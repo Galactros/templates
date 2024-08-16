@@ -42,7 +42,7 @@ fi
 CSV_FILE="pods_status.csv"
 
 # Inicializa o arquivo CSV com o cabeçalho
-echo "Namespace;Pod Name;Status;Creation Time;Recent Change;Error Count;CPU Usage;Memory Usage;CPU Limit;Memory Limit;CPU Usage vs Limit;Memory Usage vs Limit" > $CSV_FILE
+echo "Namespace;Pod Name;Status;Creation Time;Recent Change;Error Count;CPU Usage;Memory Usage;CPU Request;Memory Request;CPU Limit;Memory Limit;CPU Usage vs Limit;Memory Usage vs Limit" > $CSV_FILE
 
 # Inicializa variáveis para contagem de status
 TOTAL_PODS=0
@@ -96,14 +96,18 @@ function process_pods() {
         CPU_USAGE=$(echo $RESOURCE_USAGE | awk '{print $2}')
         MEMORY_USAGE=$(echo $RESOURCE_USAGE | awk '{print $3}')
         
-        # Obtém os limites de CPU e memória para o pod
+        # Obtém as requisições e limites de CPU e memória para o pod
+        CPU_REQUEST=$(echo $pod | jq -r '.containers[].resources.requests.cpu // "N/A"')
+        MEMORY_REQUEST=$(echo $pod | jq -r '.containers[].resources.requests.memory // "N/A"')
         CPU_LIMIT=$(echo $pod | jq -r '.containers[].resources.limits.cpu // "N/A"')
         MEMORY_LIMIT=$(echo $pod | jq -r '.containers[].resources.limits.memory // "N/A"')
 
-        # Converte os valores de uso e limites para um formato comparável (milicores para CPU e bytes para memória)
+        # Converte os valores de uso, requisições e limites para um formato comparável (milicores para CPU e bytes para memória)
         CPU_USAGE_MILICORES=$(echo $CPU_USAGE | sed 's/m//')
+        CPU_REQUEST_MILICORES=$(echo $CPU_REQUEST | sed 's/m//')
         CPU_LIMIT_MILICORES=$(echo $CPU_LIMIT | sed 's/m//')
         MEMORY_USAGE_BYTES=$(convert_memory_to_bytes $MEMORY_USAGE)
+        MEMORY_REQUEST_BYTES=$(convert_memory_to_bytes $MEMORY_REQUEST)
         MEMORY_LIMIT_BYTES=$(convert_memory_to_bytes $MEMORY_LIMIT)
         
         # Calcula a porcentagem de uso em relação aos limites
@@ -120,7 +124,7 @@ function process_pods() {
         fi
         
         # Adiciona as informações do pod ao CSV
-        echo "$namespace;$POD_NAME;$POD_STATUS;$CREATION_TIME;$RECENT_CHANGE;$ERROR_COUNT;$CPU_USAGE;$MEMORY_USAGE;$CPU_LIMIT;$MEMORY_LIMIT;$CPU_PERCENTAGE%;$MEMORY_PERCENTAGE%" >> $CSV_FILE
+        echo "$namespace;$POD_NAME;$POD_STATUS;$CREATION_TIME;$RECENT_CHANGE;$ERROR_COUNT;$CPU_USAGE;$MEMORY_USAGE;$CPU_REQUEST;$MEMORY_REQUEST;$CPU_LIMIT;$MEMORY_LIMIT;$CPU_PERCENTAGE%;$MEMORY_PERCENTAGE%" >> $CSV_FILE
         
         # Incrementa contagem de pods
         TOTAL_PODS=$((TOTAL_PODS+1))

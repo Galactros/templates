@@ -42,7 +42,7 @@ fi
 CSV_FILE="pods_status.csv"
 
 # Inicializa o arquivo CSV com o cabeçalho
-echo "Namespace;Pod Name;Status;Creation Time;Recent Change;Error Count;CPU Usage;Memory Usage;CPU Request;Memory Request;CPU Limit;Memory Limit;CPU Usage vs Limit;Memory Usage vs Limit" > $CSV_FILE
+echo "Namespace;Pod Name;Status;Creation Time;Recent Change;Error Count;CPU Usage;Memory Usage;CPU Request;Memory Request;CPU Limit;Memory Limit;CPU Usage vs Limit;Memory Usage vs Limit;HPA Enabled;HPA Min Replicas;HPA Max Replicas;HPA Current Replicas;HPA CPU Target;HPA CPU Current" > $CSV_FILE
 
 # Inicializa variáveis para contagem de status
 TOTAL_PODS=0
@@ -68,6 +68,9 @@ function convert_memory_to_bytes() {
 function process_pods() {
     local namespace=$1
     local pattern=$2
+
+    # Obtém todos os HPAs no namespace atual
+    HPA_LIST=$(oc get hpa -n $namespace -o json)
 
     # Executa o comando oc e processa a saída JSON
     oc get pods -n $namespace -o json | jq -c --arg pattern "$pattern" '.items[] | select(.metadata.name | contains($pattern)) | {name: .metadata.name, status: .status.phase, creationTime: .metadata.creationTimestamp, containers: .spec.containers}' | while read -r pod; do
@@ -123,8 +126,26 @@ function process_pods() {
             MEMORY_PERCENTAGE="N/A"
         fi
         
+        # Verifica se o pod está sob um HPA e coleta informações
+        HPA_ENABLED="No"
+        HPA_MIN_REPLICAS="N/A"
+        HPA_MAX_REPLICAS="N/A"
+        HPA_CURRENT_REPLICAS="N/A"
+        HPA_CPU_TARGET="N/A"
+        HPA_CPU_CURRENT="N/A"
+
+        HPA_INFO=$(echo $HPA_LIST | jq -c --arg pod_name "$POD_NAME" '.items[] | select(.metadata.name | contains($pod_name))')
+        if [ -n "$HPA_INFO" ]; then
+            HPA_ENABLED="Yes"
+            HPA_MIN_REPLICAS=$(echo $HPA_INFO | jq -r '.spec.minReplicas')
+            HPA_MAX_REPLICAS=$(echo $HPA_INFO | jq -r '.spec.maxReplicas')
+            HPA_CURRENT_REPLICAS=$(echo $HPA_INFO | jq -r '.status.currentReplicas')
+            HPA_CPU_TARGET=$(echo $HPA_INFO | jq -r '.spec.targetCPUUtilizationPercentage // "N/A"')
+            HPA_CPU_CURRENT=$(echo $HPA_INFO | jq -r '.status.currentCPUUtilizationPercentage // "N/A"')
+        fi
+
         # Adiciona as informações do pod ao CSV
-        echo "$namespace;$POD_NAME;$POD_STATUS;$CREATION_TIME;$RECENT_CHANGE;$ERROR_COUNT;$CPU_USAGE;$MEMORY_USAGE;$CPU_REQUEST;$MEMORY_REQUEST;$CPU_LIMIT;$MEMORY_LIMIT;$CPU_PERCENTAGE%;$MEMORY_PERCENTAGE%" >> $CSV_FILE
+        echo "$namespace;$POD_NAME;$POD_STATUS;$CREATION_TIME;$RECENT_CHANGE;$ERROR_COUNT;$CPU_USAGE;$MEMORY_USAGE;$CPU_REQUEST;$MEMORY_REQUEST;$CPU_LIMIT;$MEMORY_LIMIT;$CPU_PERCENTAGE%;$MEMORY_PERCENTAGE%;$HPA_ENABLED;$HPA_MIN_REPLICAS;$HPA_MAX_REPLICAS;$HPA_CURRENT_REPLICAS;$HPA_CPU_TARGET;$HPA_CPU_CURRENT" >> $CSV_FILE
         
         # Incrementa contagem de pods
         TOTAL_PODS=$((TOTAL_PODS+1))

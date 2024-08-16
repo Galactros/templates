@@ -49,6 +49,21 @@ TOTAL_PODS=0
 TOTAL_OK=0
 CURRENT_TIME=$(date +%s)
 
+# Função para converter memória de formato como "Mi", "Gi" para bytes
+function convert_memory_to_bytes() {
+    local memory=$1
+    local value=$(echo $memory | sed 's/[a-zA-Z]*$//') # Remove o sufixo
+    local unit=$(echo $memory | sed 's/[0-9]*//g') # Extrai a unidade
+
+    case $unit in
+        Ki) echo $(($value * 1024)) ;;
+        Mi) echo $(($value * 1024 * 1024)) ;;
+        Gi) echo $(($value * 1024 * 1024 * 1024)) ;;
+        Ti) echo $(($value * 1024 * 1024 * 1024 * 1024)) ;;
+        *) echo $value ;; # Para o caso de não haver unidade ou um valor inesperado
+    esac
+}
+
 # Função para processar os pods em um namespace
 function process_pods() {
     local namespace=$1
@@ -85,11 +100,11 @@ function process_pods() {
         CPU_LIMIT=$(echo $pod | jq -r '.containers[].resources.limits.cpu // "N/A"')
         MEMORY_LIMIT=$(echo $pod | jq -r '.containers[].resources.limits.memory // "N/A"')
 
-        # Converte os valores de uso e limites para um formato comparável (milicores e bytes)
+        # Converte os valores de uso e limites para um formato comparável (milicores para CPU e bytes para memória)
         CPU_USAGE_MILICORES=$(echo $CPU_USAGE | sed 's/m//')
         CPU_LIMIT_MILICORES=$(echo $CPU_LIMIT | sed 's/m//')
-        MEMORY_USAGE_BYTES=$(echo $MEMORY_USAGE | numfmt --from=iec)
-        MEMORY_LIMIT_BYTES=$(echo $MEMORY_LIMIT | numfmt --from=iec)
+        MEMORY_USAGE_BYTES=$(convert_memory_to_bytes $MEMORY_USAGE)
+        MEMORY_LIMIT_BYTES=$(convert_memory_to_bytes $MEMORY_LIMIT)
         
         # Calcula a porcentagem de uso em relação aos limites
         if [ "$CPU_LIMIT" != "N/A" ]; then

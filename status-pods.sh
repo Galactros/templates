@@ -64,6 +64,12 @@ function convert_memory_to_bytes() {
     esac
 }
 
+# Função para converter memória de bytes para gigabytes
+function convert_bytes_to_gigabytes() {
+    local bytes=$1
+    echo $(awk "BEGIN {printf \"%.2f\", $bytes / (1024 * 1024 * 1024)}")
+}
+
 # Função para processar os pods em um namespace
 function process_pods() {
     local namespace=$1
@@ -175,10 +181,10 @@ echo $OVERALL_STATUS >> $CSV_FILE
 
 # Geração de informações dos nodes
 echo "" >> $CSV_FILE
-echo "Node;CPU Usage;CPU Capacity;Memory Usage;Memory Capacity" >> $CSV_FILE
+echo "Node;CPU Usage (%);CPU Capacity (Cores);Memory Usage (GB);Memory Capacity (GB)" >> $CSV_FILE
 
 # Coleta as informações de todos os nodes
-oc get nodes -o json | jq -c '.items[] | {name: .metadata.name, cpuUsage: .status.capacity.cpu, memoryUsage: .status.capacity.memory}' | while read -r node; do
+oc get nodes -o json | jq -c '.items[] | {name: .metadata.name, cpuCapacity: .status.capacity.cpu, memoryCapacity: .status.capacity.memory}' | while read -r node; do
     NODE_NAME=$(echo $node | jq -r '.name')
 
     # Obtém o uso de CPU e memória atual do node
@@ -187,11 +193,20 @@ oc get nodes -o json | jq -c '.items[] | {name: .metadata.name, cpuUsage: .statu
     NODE_MEMORY_USAGE=$(echo $NODE_RESOURCE_USAGE | awk '{print $4}')
 
     # Obtém a capacidade de CPU e memória do node
-    NODE_CPU_CAPACITY=$(echo $node | jq -r '.cpuUsage')
-    NODE_MEMORY_CAPACITY=$(echo $node | jq -r '.memoryUsage')
+    NODE_CPU_CAPACITY=$(echo $node | jq -r '.cpuCapacity')
+    NODE_MEMORY_CAPACITY_BYTES=$(convert_memory_to_bytes $(echo $node | jq -r '.memoryCapacity'))
+    NODE_MEMORY_CAPACITY_GB=$(convert_bytes_to_gigabytes $NODE_MEMORY_CAPACITY_BYTES)
+
+    # Converte a capacidade de CPU para porcentagem
+    NODE_CPU_USAGE_PERCENT=$(awk "BEGIN {printf \"%.2f\", ($NODE_CPU_USAGE / $NODE_CPU_CAPACITY) * 100}")
+
+    # Converte a capacidade de memória usada para gigabytes e calcula a porcentagem
+    NODE_MEMORY_USAGE_BYTES=$(convert_memory_to_bytes $NODE_MEMORY_USAGE)
+    NODE_MEMORY_USAGE_GB=$(convert_bytes_to_gigabytes $NODE_MEMORY_USAGE_BYTES)
+    NODE_MEMORY_USAGE_PERCENT=$(awk "BEGIN {printf \"%.2f\", ($NODE_MEMORY_USAGE_BYTES / $NODE_MEMORY_CAPACITY_BYTES) * 100}")
 
     # Adiciona as informações do node ao CSV
-    echo "$NODE_NAME;$NODE_CPU_USAGE;$NODE_CPU_CAPACITY;$NODE_MEMORY_USAGE;$NODE_MEMORY_CAPACITY" >> $CSV_FILE
+    echo "$NODE_NAME;$NODE_CPU_USAGE_PERCENT;$NODE_CPU_CAPACITY;$NODE_MEMORY_USAGE_GB;$NODE_MEMORY_CAPACITY_GB" >> $CSV_FILE
 done
 
 echo "CSV gerado em $CSV_FILE"

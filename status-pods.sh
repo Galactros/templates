@@ -49,27 +49,6 @@ TOTAL_PODS=0
 TOTAL_OK=0
 CURRENT_TIME=$(date +%s)
 
-# Função para converter memória de formato como "Mi", "Gi" para bytes
-function convert_memory_to_bytes() {
-    local memory=$1
-    local value=$(echo $memory | sed 's/[a-zA-Z]*$//') # Remove o sufixo
-    local unit=$(echo $memory | sed 's/[0-9]*//g') # Extrai a unidade
-
-    case $unit in
-        Ki) echo $(($value * 1024)) ;;
-        Mi) echo $(($value * 1024 * 1024)) ;;
-        Gi) echo $(($value * 1024 * 1024 * 1024)) ;;
-        Ti) echo $(($value * 1024 * 1024 * 1024 * 1024)) ;;
-        *) echo $value ;; # Para o caso de não haver unidade ou um valor inesperado
-    esac
-}
-
-# Função para converter memória de bytes para gigabytes
-function convert_bytes_to_gigabytes() {
-    local bytes=$1
-    echo $(awk "BEGIN {printf \"%.2f\", $bytes / (1024 * 1024 * 1024)}")
-}
-
 # Função para processar os pods em um namespace
 function process_pods() {
     local namespace=$1
@@ -110,27 +89,6 @@ function process_pods() {
         MEMORY_REQUEST=$(echo $pod | jq -r '.containers[].resources.requests.memory // "N/A"')
         CPU_LIMIT=$(echo $pod | jq -r '.containers[].resources.limits.cpu // "N/A"')
         MEMORY_LIMIT=$(echo $pod | jq -r '.containers[].resources.limits.memory // "N/A"')
-
-        # Converte os valores de uso, requisições e limites para um formato comparável (milicores para CPU e bytes para memória)
-        CPU_USAGE_MILICORES=$(echo $CPU_USAGE | sed 's/m//')
-        CPU_REQUEST_MILICORES=$(echo $CPU_REQUEST | sed 's/m//')
-        CPU_LIMIT_MILICORES=$(echo $CPU_LIMIT | sed 's/m//')
-        MEMORY_USAGE_BYTES=$(convert_memory_to_bytes $MEMORY_USAGE)
-        MEMORY_REQUEST_BYTES=$(convert_memory_to_bytes $MEMORY_REQUEST)
-        MEMORY_LIMIT_BYTES=$(convert_memory_to_bytes $MEMORY_LIMIT)
-        
-        # Calcula a porcentagem de uso em relação aos limites
-        if [ "$CPU_LIMIT" != "N/A" ]; then
-            CPU_PERCENTAGE=$(awk "BEGIN {printf \"%.2f\", ($CPU_USAGE_MILICORES / $CPU_LIMIT_MILICORES) * 100}")
-        else
-            CPU_PERCENTAGE="N/A"
-        fi
-
-        if [ "$MEMORY_LIMIT" != "N/A" ]; then
-            MEMORY_PERCENTAGE=$(awk "BEGIN {printf \"%.2f\", ($MEMORY_USAGE_BYTES / $MEMORY_LIMIT_BYTES) * 100}")
-        else
-            MEMORY_PERCENTAGE="N/A"
-        fi
         
         # Verifica se o pod está sob um HPA e coleta informações
         HPA_ENABLED="No"
@@ -181,32 +139,18 @@ echo $OVERALL_STATUS >> $CSV_FILE
 
 # Geração de informações dos nodes
 echo "" >> $CSV_FILE
-echo "Node;CPU Usage (%);CPU Capacity (Cores);Memory Usage (GB);Memory Capacity (GB)" >> $CSV_FILE
+echo "Node;CPU Usage;CPU Usage (%);Memory Usage;Memory Usage (%)" >> $CSV_FILE
 
-# Coleta as informações de todos os nodes
-oc get nodes -o json | jq -c '.items[] | {name: .metadata.name, cpuCapacity: .status.capacity.cpu, memoryCapacity: .status.capacity.memory}' | while read -r node; do
-    NODE_NAME=$(echo $node | jq -r '.name')
-
-    # Obtém o uso de CPU e memória atual do node
-    NODE_RESOURCE_USAGE=$(oc adm top node $NODE_NAME --no-headers --use-protocol-buffers)
-    NODE_CPU_USAGE=$(echo $NODE_RESOURCE_USAGE | awk '{print $2}')
-    NODE_MEMORY_USAGE=$(echo $NODE_RESOURCE_USAGE | awk '{print $4}')
-
-    # Obtém a capacidade de CPU e memória do node
-    NODE_CPU_CAPACITY=$(echo $node | jq -r '.cpuCapacity')
-    NODE_MEMORY_CAPACITY_BYTES=$(convert_memory_to_bytes $(echo $node | jq -r '.memoryCapacity'))
-    NODE_MEMORY_CAPACITY_GB=$(convert_bytes_to_gigabytes $NODE_MEMORY_CAPACITY_BYTES)
-
-    # Converte a capacidade de CPU para porcentagem
-    NODE_CPU_USAGE_PERCENT=$(awk "BEGIN {printf \"%.2f\", ($NODE_CPU_USAGE / $NODE_CPU_CAPACITY) * 100}")
-
-    # Converte a capacidade de memória usada para gigabytes e calcula a porcentagem
-    NODE_MEMORY_USAGE_BYTES=$(convert_memory_to_bytes $NODE_MEMORY_USAGE)
-    NODE_MEMORY_USAGE_GB=$(convert_bytes_to_gigabytes $NODE_MEMORY_USAGE_BYTES)
-    NODE_MEMORY_USAGE_PERCENT=$(awk "BEGIN {printf \"%.2f\", ($NODE_MEMORY_USAGE_BYTES / $NODE_MEMORY_CAPACITY_BYTES) * 100}")
+# Coleta as informações de todos os nodes usando apenas o comando 'oc adm top node'
+oc adm top nodes --no-headers --use-protocol-buffers | while read -r line; do
+    NODE_NAME=$(echo $line | awk '{print $1}')
+    NODE_CPU_USAGE=$(echo $line | awk '{print $2}')
+    NODE_CPU_PERCENT=$(echo $line | awk '{print $3}')
+    NODE_MEMORY_USAGE=$(echo $line | awk '{print $4}')
+    NODE_MEMORY_PERCENT=$(echo $line | awk '{print $5}')
 
     # Adiciona as informações do node ao CSV
-    echo "$NODE_NAME;$NODE_CPU_USAGE_PERCENT;$NODE_CPU_CAPACITY;$NODE_MEMORY_USAGE_GB;$NODE_MEMORY_CAPACITY_GB" >> $CSV_FILE
+    echo "$NODE_NAME;$NODE_CPU_USAGE;$NODE_CPU_PERCENT;$NODE_MEMORY_USAGE;$NODE_MEMORY_PERCENT" >> $CSV_FILE
 done
 
 echo "CSV gerado em $CSV_FILE"

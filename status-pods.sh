@@ -173,4 +173,25 @@ echo "" >> $CSV_FILE
 echo "Overall Status;" >> $CSV_FILE
 echo $OVERALL_STATUS >> $CSV_FILE
 
+# Geração de informações dos nodes
+echo "" >> $CSV_FILE
+echo "Node;CPU Usage;CPU Capacity;Memory Usage;Memory Capacity" >> $CSV_FILE
+
+# Coleta as informações de todos os nodes
+oc get nodes -o json | jq -c '.items[] | {name: .metadata.name, cpuUsage: .status.capacity.cpu, memoryUsage: .status.capacity.memory}' | while read -r node; do
+    NODE_NAME=$(echo $node | jq -r '.name')
+
+    # Obtém o uso de CPU e memória atual do node
+    NODE_RESOURCE_USAGE=$(oc adm top node $NODE_NAME --no-headers)
+    NODE_CPU_USAGE=$(echo $NODE_RESOURCE_USAGE | awk '{print $2}')
+    NODE_MEMORY_USAGE=$(echo $NODE_RESOURCE_USAGE | awk '{print $4}')
+
+    # Obtém a capacidade de CPU e memória do node
+    NODE_CPU_CAPACITY=$(echo $node | jq -r '.cpuUsage')
+    NODE_MEMORY_CAPACITY=$(echo $node | jq -r '.memoryUsage')
+
+    # Adiciona as informações do node ao CSV
+    echo "$NODE_NAME;$NODE_CPU_USAGE;$NODE_CPU_CAPACITY;$NODE_MEMORY_USAGE;$NODE_MEMORY_CAPACITY" >> $CSV_FILE
+done
+
 echo "CSV gerado em $CSV_FILE"

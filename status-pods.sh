@@ -182,7 +182,7 @@ oc get nodes -o json | jq -c '.items[] | {name: .metadata.name, cpuUsage: .statu
     NODE_NAME=$(echo $node | jq -r '.name')
 
     # Obtém o uso de CPU e memória atual do node
-    NODE_RESOURCE_USAGE=$(oc adm top node $NODE_NAME --no-headers)
+    NODE_RESOURCE_USAGE=$(oc adm top node $NODE_NAME --no-headers --use-protocol-buffers)
     NODE_CPU_USAGE=$(echo $NODE_RESOURCE_USAGE | awk '{print $2}')
     NODE_MEMORY_USAGE=$(echo $NODE_RESOURCE_USAGE | awk '{print $4}')
 

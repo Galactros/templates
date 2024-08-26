@@ -4,8 +4,8 @@
 function usage() {
     echo "Uso: $0 -c <clusters> -n <namespaces> -p <pod patterns>"
     echo "  -c <clusters>      Lista de contextos dos clusters, separados por vírgulas"
-    echo "  -n <namespaces>    Lista de namespaces, separados por vírgulas"
-    echo "  -p <pod patterns>  Lista de padrões de nomes de pods, separados por vírgulas"
+    echo "  -n <namespaces>    Lista de namespaces, separados por vírgulas (um conjunto por cluster)"
+    echo "  -p <pod patterns>  Lista de padrões de nomes de pods, separados por vírgulas (um conjunto por cluster)"
     exit 1
 }
 
@@ -34,12 +34,12 @@ fi
 
 # Converte as listas de clusters, namespaces e pod patterns para arrays
 IFS=',' read -r -a CLUSTERS_ARRAY <<< "$CLUSTERS"
-IFS=',' read -r -a NAMESPACES_ARRAY <<< "$NAMESPACES"
-IFS=',' read -r -a POD_PATTERNS_ARRAY <<< "$POD_PATTERNS"
+IFS=';' read -r -a NAMESPACES_ARRAY <<< "$NAMESPACES"
+IFS=';' read -r -a POD_PATTERNS_ARRAY <<< "$POD_PATTERNS"
 
 # Verifica se o tamanho dos arrays é igual
-if [ "${#NAMESPACES_ARRAY[@]}" -ne "${#POD_PATTERNS_ARRAY[@]}" ]; then
-    echo "Erro: O número de namespaces e padrões de pods deve ser igual."
+if [ "${#CLUSTERS_ARRAY[@]}" -ne "${#NAMESPACES_ARRAY[@]}" ] || [ "${#NAMESPACES_ARRAY[@]}" -ne "${#POD_PATTERNS_ARRAY[@]}" ]; then
+    echo "Erro: O número de clusters, namespaces e padrões de pods deve ser igual."
     exit 1
 fi
 
@@ -120,17 +120,19 @@ function process_pods() {
     done
 }
 
-# Processa as listas de clusters, namespaces e pod patterns
-for cluster in "${CLUSTERS_ARRAY[@]}"; do
-    # Muda para o contexto do cluster
-    oc config use-context "$cluster"
+# Processa as listas de clusters, namespaces e pod patterns corretamente
+for index in "${!CLUSTERS_ARRAY[@]}"; do
+    cluster="${CLUSTERS_ARRAY[$index]}"
+    namespaces="${NAMESPACES_ARRAY[$index]}"
+    pod_patterns="${POD_PATTERNS_ARRAY[$index]}"
 
-    # Processa os namespaces e padrões de pods para o cluster atual
-    for i in "${!NAMESPACES_ARRAY[@]}"; do
-        process_pods "$cluster" "${NAMESPACES_ARRAY[$i]}" "${POD_PATTERNS_ARRAY[$i]}"
+    IFS=',' read -r -a namespace_array <<< "$namespaces"
+    IFS=',' read -r -a pattern_array <<< "$pod_patterns"
+
+    for i in "${!namespace_array[@]}"; do
+        process_pods "$cluster" "${namespace_array[$i]}" "${pattern_array[$i]}"
     done
 done
-
 
 # Geração de informações dos nodes para cada cluster
 echo "" >> $CSV_FILE

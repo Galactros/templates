@@ -2,15 +2,19 @@
 
 # Função para exibir o uso do script
 function usage() {
-    echo "Uso: $0 -n <namespaces> -p <pod patterns>"
-    echo "  -n <namespaces>     Lista de namespaces, separados por vírgulas"
-    echo "  -p <pod patterns>   Lista de padrões de nomes de pods, separados por vírgulas"
+    echo "Uso: $0 -c <clusters> -n <namespaces> -p <pod patterns>"
+    echo "  -c <clusters>      Lista de contextos dos clusters, separados por vírgulas"
+    echo "  -n <namespaces>    Lista de namespaces, separados por vírgulas"
+    echo "  -p <pod patterns>  Lista de padrões de nomes de pods, separados por vírgulas"
     exit 1
 }
 
 # Parseia os argumentos de linha de comando
-while getopts "n:p:" opt; do
+while getopts "c:n:p:" opt; do
     case $opt in
+        c)
+            CLUSTERS=$OPTARG
+            ;;
         n)
             NAMESPACES=$OPTARG
             ;;
@@ -23,12 +27,13 @@ while getopts "n:p:" opt; do
     esac
 done
 
-# Verifica se ambos os parâmetros foram fornecidos
-if [ -z "$NAMESPACES" ] || [ -z "$POD_PATTERNS" ]; then
+# Verifica se todos os parâmetros foram fornecidos
+if [ -z "$CLUSTERS" ] || [ -z "$NAMESPACES" ] || [ -z "$POD_PATTERNS" ]; then
     usage
 fi
 
-# Converte as listas de namespaces e pod patterns para arrays
+# Converte as listas de clusters, namespaces e pod patterns para arrays
+IFS=',' read -r -a CLUSTERS_ARRAY <<< "$CLUSTERS"
 IFS=',' read -r -a NAMESPACES_ARRAY <<< "$NAMESPACES"
 IFS=',' read -r -a POD_PATTERNS_ARRAY <<< "$POD_PATTERNS"
 
@@ -42,17 +47,16 @@ fi
 CSV_FILE="pods_status.csv"
 
 # Inicializa o arquivo CSV com o cabeçalho
-echo "Namespace;Pod Name;Status;Creation Time;Recent Change;Error Count;CPU Usage;Memory Usage;CPU Request;Memory Request;CPU Limit;Memory Limit;CPU Usage vs Limit;Memory Usage vs Limit;HPA Enabled;HPA Min Replicas;HPA Max Replicas;HPA Current Replicas;HPA CPU Target;HPA CPU Current;Restart Count" > $CSV_FILE
+echo "Cluster;Namespace;Pod Name;Status;Creation Time;Recent Change;Error Count;CPU Usage;Memory Usage;CPU Request;Memory Request;CPU Limit;Memory Limit;CPU Usage vs Limit;Memory Usage vs Limit;HPA Enabled;HPA Min Replicas;HPA Max Replicas;HPA Current Replicas;HPA CPU Target;HPA CPU Current;Restart Count" > $CSV_FILE
 
-# Inicializa variáveis para contagem de status
-TOTAL_PODS=0
-TOTAL_OK=0
-CURRENT_TIME=$(date +%s)
-
-# Função para processar os pods em um namespace
+# Função para processar os pods em um namespace dentro de um cluster
 function process_pods() {
-    local namespace=$1
-    local pattern=$2
+    local cluster=$1
+    local namespace=$2
+    local pattern=$3
+
+    # Muda para o contexto do cluster especificado
+    oc config use-context $cluster
 
     # Obtém todos os HPAs no namespace atual
     HPA_LIST=$(oc get hpa -n $namespace -o json)
@@ -112,45 +116,36 @@ function process_pods() {
         RESTART_COUNT=$(echo $pod | jq -r '.restartCount')
 
         # Adiciona as informações do pod ao CSV
-        echo "$namespace;$POD_NAME;$POD_STATUS;$CREATION_TIME;$RECENT_CHANGE;$ERROR_COUNT;$CPU_USAGE;$MEMORY_USAGE;$CPU_REQUEST;$MEMORY_REQUEST;$CPU_LIMIT;$MEMORY_LIMIT;$CPU_PERCENTAGE%;$MEMORY_PERCENTAGE%;$HPA_ENABLED;$HPA_MIN_REPLICAS;$HPA_MAX_REPLICAS;$HPA_CURRENT_REPLICAS;$HPA_CPU_TARGET;$HPA_CPU_CURRENT;$RESTART_COUNT" >> $CSV_FILE
-        
-        # Incrementa contagem de pods
-        TOTAL_PODS=$((TOTAL_PODS+1))
-        if [[ "$POD_STATUS" == "Running" ]]; then
-            TOTAL_OK=$((TOTAL_OK+1))
-        fi
+        echo "$cluster;$namespace;$POD_NAME;$POD_STATUS;$CREATION_TIME;$RECENT_CHANGE;$ERROR_COUNT;$CPU_USAGE;$MEMORY_USAGE;$CPU_REQUEST;$MEMORY_REQUEST;$CPU_LIMIT;$MEMORY_LIMIT;$CPU_PERCENTAGE%;$MEMORY_PERCENTAGE%;$HPA_ENABLED;$HPA_MIN_REPLICAS;$HPA_MAX_REPLICAS;$HPA_CURRENT_REPLICAS;$HPA_CPU_TARGET;$HPA_CPU_CURRENT;$RESTART_COUNT" >> $CSV_FILE
     done
 }
 
-# Processa as listas de namespaces e pod patterns em pares
-for i in "${!NAMESPACES_ARRAY[@]}"; do
-    process_pods "${NAMESPACES_ARRAY[$i]}" "${POD_PATTERNS_ARRAY[$i]}"
+# Processa as listas de clusters, namespaces e pod patterns
+for cluster in "${CLUSTERS_ARRAY[@]}"; do
+    for i in "${!NAMESPACES_ARRAY[@]}"; do
+        process_pods "$cluster" "${NAMESPACES_ARRAY[$i]}" "${POD_PATTERNS_ARRAY[$i]}"
+    done
 done
 
-# Adiciona o resultado geral no final do CSV
-if [[ $TOTAL_PODS -eq $TOTAL_OK ]]; then
-    OVERALL_STATUS="All Pods are Running"
-else
-    OVERALL_STATUS="Some Pods are not Running"
-fi
+# Geração de informações dos nodes para cada cluster
 echo "" >> $CSV_FILE
-echo "Overall Status;" >> $CSV_FILE
-echo $OVERALL_STATUS >> $CSV_FILE
+echo "Cluster;Node;CPU Usage;CPU Usage (%);Memory Usage;Memory Usage (%)" >> $CSV_FILE
 
-# Geração de informações dos nodes
-echo "" >> $CSV_FILE
-echo "Node;CPU Usage;CPU Usage (%);Memory Usage;Memory Usage (%)" >> $CSV_FILE
+for cluster in "${CLUSTERS_ARRAY[@]}"; do
+    # Muda para o contexto do cluster especificado
+    oc config use-context $cluster
+    
+    # Coleta as informações de todos os nodes usando o comando 'oc adm top nodes'
+    oc adm top nodes --no-headers --use-protocol-buffers | while read -r line; do
+        NODE_NAME=$(echo $line | awk '{print $1}')
+        NODE_CPU_USAGE=$(echo $line | awk '{print $2}')
+        NODE_CPU_PERCENT=$(echo $line | awk '{print $3}')
+        NODE_MEMORY_USAGE=$(echo $line | awk '{print $4}')
+        NODE_MEMORY_PERCENT=$(echo $line | awk '{print $5}')
 
-# Coleta as informações de todos os nodes usando apenas o comando 'oc adm top node'
-oc adm top nodes --no-headers --use-protocol-buffers | while read -r line; do
-    NODE_NAME=$(echo $line | awk '{print $1}')
-    NODE_CPU_USAGE=$(echo $line | awk '{print $2}')
-    NODE_CPU_PERCENT=$(echo $line | awk '{print $3}')
-    NODE_MEMORY_USAGE=$(echo $line | awk '{print $4}')
-    NODE_MEMORY_PERCENT=$(echo $line | awk '{print $5}')
-
-    # Adiciona as informações do node ao CSV
-    echo "$NODE_NAME;$NODE_CPU_USAGE;$NODE_CPU_PERCENT;$NODE_MEMORY_USAGE;$NODE_MEMORY_PERCENT" >> $CSV_FILE
+        # Adiciona as informações do node ao CSV
+        echo "$cluster;$NODE_NAME;$NODE_CPU_USAGE;$NODE_CPU_PERCENT;$NODE_MEMORY_USAGE;$NODE_MEMORY_PERCENT" >> $CSV_FILE
+    done
 done
 
 echo "CSV gerado em $CSV_FILE"

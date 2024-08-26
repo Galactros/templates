@@ -122,10 +122,15 @@ function process_pods() {
 
 # Processa as listas de clusters, namespaces e pod patterns
 for cluster in "${CLUSTERS_ARRAY[@]}"; do
+    # Muda para o contexto do cluster
+    oc config use-context "$cluster"
+
+    # Processa os namespaces e padrões de pods para o cluster atual
     for i in "${!NAMESPACES_ARRAY[@]}"; do
         process_pods "$cluster" "${NAMESPACES_ARRAY[$i]}" "${POD_PATTERNS_ARRAY[$i]}"
     done
 done
+
 
 # Geração de informações dos nodes para cada cluster
 echo "" >> $CSV_FILE

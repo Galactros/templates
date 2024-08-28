@@ -69,7 +69,7 @@ function process_pods() {
     HPA_LIST=$(oc get hpa -n $namespace -o json)
 
     # Executa o comando oc e processa a saída JSON
-    oc get pods -n $namespace -o json | jq -c --arg pattern "$pattern" '.items[] | select(.metadata.name | contains($pattern)) | {name: .metadata.name, status: .status.phase, creationTime: .metadata.creationTimestamp, containers: .spec.containers, restartCount: .status.containerStatuses[].restartCount}' | while read -r pod; do
+    oc get pods -n $namespace -o json | jq -c --arg pattern "$pattern" '.items[] | select(.metadata.name | contains($pattern)) | {name: .metadata.name, status: .status.phase, creationTime: .metadata.creationTimestamp, containers: .spec.containers, restartCount: .status.containerStatuses[].restartCount}' | while IFS= read -r pod; do
         POD_NAME=$(echo $pod | jq -r '.name')
         POD_STATUS=$(echo $pod | jq -r '.status')
         CREATION_TIME=$(echo $pod | jq -r '.creationTime')
@@ -170,7 +170,7 @@ for cluster in "${CLUSTERS_ARRAY[@]}"; do
     oc config use-context $cluster
     
     # Coleta as informações de todos os nodes usando o comando 'oc adm top nodes'
-    oc adm top nodes --no-headers --use-protocol-buffers | while read -r line; do
+    oc adm top nodes --no-headers --use-protocol-buffers | while IFS= read -r line; do
         NODE_NAME=$(echo $line | awk '{print $1}')
         NODE_CPU_USAGE=$(echo $line | awk '{print $2}')
         NODE_CPU_PERCENT=$(echo $line | awk '{print $3}')

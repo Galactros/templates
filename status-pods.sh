@@ -63,6 +63,8 @@ function process_pods() {
     namespace=$2
     pattern=$3
 
+    printf "Processando cluster: %s, namespace: %s, padrão: %s\n" "$cluster" "$namespace" "$pattern"
+
     # Muda para o contexto do cluster especificado
     oc config use-context "$cluster"
 
@@ -82,6 +84,9 @@ function process_pods() {
         pod_name=$(echo "$pod_data" | jq -r '.name')
         pod_status=$(echo "$pod_data" | jq -r '.status')
         creation_time=$(echo "$pod_data" | jq -r '.creationTime')
+
+        # Log de processamento do pod
+        printf "  Processando pod: %s\n" "$pod_name"
 
         # Converte a data de criação para segundos desde Epoch
         creation_time_epoch=$(date -d "$creation_time" +%s)
@@ -164,9 +169,7 @@ for index in "${!CLUSTERS_ARRAY[@]}"; do
     namespaces="${NAMESPACES_ARRAY[$index]}"
     pod_patterns="${POD_PATTERNS_ARRAY[$index]}"
 
-    IFS=',' read -r -a namespace_array
-
- <<< "$namespaces"
+    IFS=',' read -r -a namespace_array <<< "$namespaces"
     IFS=',' read -r -a pattern_array <<< "$pod_patterns"
 
     for i in "${!namespace_array[@]}"; do
@@ -178,6 +181,8 @@ done
 printf "\nCluster;Node;CPU Usage;CPU Usage (%%);Memory Usage;Memory Usage (%%)\n" >> "$CSV_FILE"
 
 for cluster in "${CLUSTERS_ARRAY[@]}"; do
+    printf "Processando informações dos nodes para o cluster: %s\n" "$cluster"
+
     # Muda para o contexto do cluster especificado
     oc config use-context "$cluster"
 
@@ -189,6 +194,9 @@ for cluster in "${CLUSTERS_ARRAY[@]}"; do
         node_memory_usage=$(echo "$line" | awk '{print $4}')
         node_memory_percent=$(echo "$line" | awk '{print $5}')
 
+        # Log de processamento do node
+        printf "  Processando node: %s\n" "$node_name"
+
         # Verifica se o node está próximo de seu limite de CPU ou memória
         if [[ "${node_cpu_percent%?}" -ge 80 ]] || [[ "${node_memory_percent%?}" -ge 80 ]]; then
             node_limit_issues["$cluster|$node_name"]="CPU: $node_cpu_percent, Memory: $node_memory_percent"
@@ -198,7 +206,6 @@ for cluster in "${CLUSTERS_ARRAY[@]}"; do
         printf "%s;%s;%s;%s;%s;%s\n" "$cluster" "$node_name" "$node_cpu_usage" "$node_cpu_percent" "$node_memory_usage" "$node_memory_percent" >> "$CSV_FILE"
     done
 done
-
 
 # Geração do Relatório Final
 {

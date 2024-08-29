@@ -2,10 +2,10 @@
 
 # Função para exibir o uso do script
 function usage() {
-    echo "Uso: $0 -c <clusters> -n <namespaces> -p <pod patterns>"
-    echo "  -c <clusters>      Lista de contextos dos clusters, separados por vírgulas"
-    echo "  -n <namespaces>    Lista de namespaces, separados por vírgulas (um conjunto por cluster)"
-    echo "  -p <pod patterns>  Lista de padrões de nomes de pods, separados por vírgulas (um conjunto por cluster)"
+    printf "Uso: %s -c <clusters> -n <namespaces> -p <pod patterns>\n" "$0"
+    printf "  -c <clusters>      Lista de contextos dos clusters, separados por vírgulas\n"
+    printf "  -n <namespaces>    Lista de namespaces, separados por vírgulas (um conjunto por cluster)\n"
+    printf "  -p <pod patterns>  Lista de padrões de nomes de pods, separados por vírgulas (um conjunto por cluster)\n"
     exit 1
 }
 
@@ -28,7 +28,7 @@ while getopts "c:n:p:" opt; do
 done
 
 # Verifica se todos os parâmetros foram fornecidos
-if [ -z "$CLUSTERS" ] || [ -z "$NAMESPACES" ] || [ -z "$POD_PATTERNS" ]; then
+if [[ -z "$CLUSTERS" ]] || [[ -z "$NAMESPACES" ]] || [[ -z "$POD_PATTERNS" ]]; then
     usage
 fi
 
@@ -38,8 +38,8 @@ IFS=';' read -r -a NAMESPACES_ARRAY <<< "$NAMESPACES"
 IFS=';' read -r -a POD_PATTERNS_ARRAY <<< "$POD_PATTERNS"
 
 # Verifica se o tamanho dos arrays é igual
-if [ "${#CLUSTERS_ARRAY[@]}" -ne "${#NAMESPACES_ARRAY[@]}" ] || [ "${#NAMESPACES_ARRAY[@]}" -ne "${#POD_PATTERNS_ARRAY[@]}" ]; then
-    echo "Erro: O número de clusters, namespaces e padrões de pods deve ser igual."
+if [[ "${#CLUSTERS_ARRAY[@]}" -ne "${#NAMESPACES_ARRAY[@]}" ]] || [[ "${#NAMESPACES_ARRAY[@]}" -ne "${#POD_PATTERNS_ARRAY[@]}" ]]; then
+    printf "Erro: O número de clusters, namespaces e padrões de pods deve ser igual.\n" >&2
     exit 1
 fi
 
@@ -47,103 +47,114 @@ fi
 CSV_FILE="pods_status.csv"
 
 # Inicializa o arquivo CSV com o cabeçalho
-echo "Cluster;Namespace;Pod Name;Status;Creation Time;Recent Change;Error Count;CPU Usage;Memory Usage;CPU Request;Memory Request;CPU Limit;Memory Limit;CPU Usage vs Limit;Memory Usage vs Limit;HPA Enabled;HPA Min Replicas;HPA Max Replicas;HPA Current Replicas;HPA CPU Target;HPA CPU Current;Restart Count" > $CSV_FILE
+printf "Cluster;Namespace;Pod Name;Status;Creation Time;Recent Change;Error Count;CPU Usage;Memory Usage;CPU Request;Memory Request;CPU Limit;Memory Limit;CPU Usage vs Limit;Memory Usage vs Limit;HPA Enabled;HPA Min Replicas;HPA Max Replicas;HPA Current Replicas;HPA CPU Target;HPA CPU Current;Restart Count\n" > "$CSV_FILE"
 
-# Inicializa variáveis para o relatório final
-declare -A pod_status_errors
-declare -A hpa_limit_exceeded
-declare -A high_error_count
-declare -A pods_with_restarts
-declare -A node_limit_issues
+# Inicializa variáveis para o relatório final (globais para serem persistentes)
+declare -gA pod_status_errors
+declare -gA hpa_limit_exceeded
+declare -gA high_error_count
+declare -gA pods_with_restarts
+declare -gA node_limit_issues
 
 # Função para processar os pods em um namespace dentro de um cluster
 function process_pods() {
-    local cluster=$1
-    local namespace=$2
-    local pattern=$3
+    local cluster namespace pattern
+    cluster=$1
+    namespace=$2
+    pattern=$3
 
     # Muda para o contexto do cluster especificado
-    oc config use-context $cluster
+    oc config use-context "$cluster"
 
     # Obtém todos os HPAs no namespace atual
-    HPA_LIST=$(oc get hpa -n $namespace -o json)
+    local hpa_list
+    hpa_list=$(oc get hpa -n "$namespace" -o json)
 
     # Executa o comando oc e processa a saída JSON
-    oc get pods -n $namespace -o json | jq -c --arg pattern "$pattern" '.items[] | select(.metadata.name | contains($pattern)) | {name: .metadata.name, status: .status.phase, creationTime: .metadata.creationTimestamp, containers: .spec.containers, restartCount: .status.containerStatuses[].restartCount}' | while IFS= read -r pod; do
-        POD_NAME=$(echo $pod | jq -r '.name')
-        POD_STATUS=$(echo $pod | jq -r '.status')
-        CREATION_TIME=$(echo $pod | jq -r '.creationTime')
-        
+    local pod_data pod_name pod_status creation_time creation_time_epoch time_diff recent_change error_count
+    local resource_usage cpu_usage memory_usage cpu_request memory_request cpu_limit memory_limit hpa_info
+    local hpa_enabled hpa_min_replicas hpa_max_replicas hpa_current_replicas hpa_cpu_target hpa_cpu_current
+    local restart_count
+
+    oc get pods -n "$namespace" -o json | jq -c --arg pattern "$pattern" \
+    '.items[] | select(.metadata.name | contains($pattern)) | {name: .metadata.name, status: .status.phase, creationTime: .metadata.creationTimestamp, containers: .spec.containers, restartCount: .status.containerStatuses[].restartCount}' |
+    while IFS= read -r pod_data; do
+        pod_name=$(echo "$pod_data" | jq -r '.name')
+        pod_status=$(echo "$pod_data" | jq -r '.status')
+        creation_time=$(echo "$pod_data" | jq -r '.creationTime')
+
         # Converte a data de criação para segundos desde Epoch
-        CREATION_TIME_EPOCH=$(date -d "$CREATION_TIME" +%s)
-        
-        # Calcula a diferença de tempo
-        TIME_DIFF=$((CURRENT_TIME - CREATION_TIME_EPOCH))
-        
+        creation_time_epoch=$(date -d "$creation_time" +%s)
+        time_diff=$((CURRENT_TIME - creation_time_epoch))
+
         # Verifica se o pod foi criado nas últimas 24 horas (86400 segundos)
-        if [ $TIME_DIFF -lt 86400 ]; then
-            RECENT_CHANGE="Yes"
+        if [[ $time_diff -lt 86400 ]]; then
+            recent_change="Yes"
         else
-            RECENT_CHANGE="No"
+            recent_change="No"
         fi
-        
+
         # Conta a quantidade de linhas com a palavra "ERRO" nos logs do pod
-        ERROR_COUNT=$(oc logs -n $namespace $POD_NAME | grep -c "ERRO")
-        
+        error_count=$(oc logs -n "$namespace" "$pod_name" | grep -c "ERRO")
+
         # Verifica se o erro conta é alto
-        if [ "$ERROR_COUNT" -gt 2000 ]; then
-            high_error_count["$cluster|$namespace|$POD_NAME"]=$ERROR_COUNT
+        if [[ "$error_count" -gt 2000 ]]; then
+            high_error_count["$cluster|$namespace|$pod_name"]=$error_count
         fi
 
         # Obtém o uso de CPU e Memória
-        RESOURCE_USAGE=$(oc adm top pod $POD_NAME -n $namespace --no-headers --use-protocol-buffers)
-        CPU_USAGE=$(echo $RESOURCE_USAGE | awk '{print $2}')
-        MEMORY_USAGE=$(echo $RESOURCE_USAGE | awk '{print $3}')
-        
-        # Obtém as requisições e limites de CPU e memória para o pod
-        CPU_REQUEST=$(echo $pod | jq -r '.containers[].resources.requests.cpu // "N/A"')
-        MEMORY_REQUEST=$(echo $pod | jq -r '.containers[].resources.requests.memory // "N/A"')
-        CPU_LIMIT=$(echo $pod | jq -r '.containers[].resources.limits.cpu // "N/A"')
-        MEMORY_LIMIT=$(echo $pod | jq -r '.containers[].resources.limits.memory // "N/A"')
-        
-        # Verifica se o pod está sob um HPA e coleta informações
-        HPA_ENABLED="No"
-        HPA_MIN_REPLICAS="N/A"
-        HPA_MAX_REPLICAS="N/A"
-        HPA_CURRENT_REPLICAS="N/A"
-        HPA_CPU_TARGET="N/A"
-        HPA_CPU_CURRENT="N/A"
+        resource_usage=$(oc adm top pod "$pod_name" -n "$namespace" --no-headers --use-protocol-buffers)
+        cpu_usage=$(echo "$resource_usage" | awk '{print $2}')
+        memory_usage=$(echo "$resource_usage" | awk '{print $3}')
 
-        HPA_INFO=$(echo $HPA_LIST | jq -c --arg pod_name "$POD_NAME" '.items[] | select(.metadata.name | contains($pod_name))')
-        if [ -n "$HPA_INFO" ]; then
-            HPA_ENABLED="Yes"
-            HPA_MIN_REPLICAS=$(echo $HPA_INFO | jq -r '.spec.minReplicas')
-            HPA_MAX_REPLICAS=$(echo $HPA_INFO | jq -r '.spec.maxReplicas')
-            HPA_CURRENT_REPLICAS=$(echo $HPA_INFO | jq -r '.status.currentReplicas')
-            HPA_CPU_TARGET=$(echo $HPA_INFO | jq -r '.spec.targetCPUUtilizationPercentage // "N/A"')
-            HPA_CPU_CURRENT=$(echo $HPA_INFO | jq -r '.status.currentCPUUtilizationPercentage // "N/A"')
+        # Obtém as requisições e limites de CPU e memória para o pod
+        cpu_request=$(echo "$pod_data" | jq -r '.containers[].resources.requests.cpu // "N/A"')
+        memory_request=$(echo "$pod_data" | jq -r '.containers[].resources.requests.memory // "N/A"')
+        cpu_limit=$(echo "$pod_data" | jq -r '.containers[].resources.limits.cpu // "N/A"')
+        memory_limit=$(echo "$pod_data" | jq -r '.containers[].resources.limits.memory // "N/A"')
+
+        # Verifica se o pod está sob um HPA e coleta informações
+        hpa_enabled="No"
+        hpa_min_replicas="N/A"
+        hpa_max_replicas="N/A"
+        hpa_current_replicas="N/A"
+        hpa_cpu_target="N/A"
+        hpa_cpu_current="N/A"
+
+        hpa_info=$(echo "$hpa_list" | jq -c --arg pod_name "$pod_name" '.items[] | select(.metadata.name | contains($pod_name))')
+        if [[ -n "$hpa_info" ]]; then
+            hpa_enabled="Yes"
+            hpa_min_replicas=$(echo "$hpa_info" | jq -r '.spec.minReplicas')
+            hpa_max_replicas=$(echo "$hpa_info" | jq -r '.spec.maxReplicas')
+            hpa_current_replicas=$(echo "$hpa_info" | jq -r '.status.currentReplicas')
+            hpa_cpu_target=$(echo "$hpa_info" | jq -r '.spec.targetCPUUtilizationPercentage // "N/A"')
+            hpa_cpu_current=$(echo "$hpa_info" | jq -r '.status.currentCPUUtilizationPercentage // "N/A"')
 
             # Verifica se o HPA está acima de 80% do limite
-            if [ "$HPA_CPU_CURRENT" != "N/A" ] && [ "$HPA_CPU_CURRENT" -ge 80 ]; then
-                hpa_limit_exceeded["$cluster|$namespace|$POD_NAME"]=$HPA_CPU_CURRENT
+            if [[ "$hpa_cpu_current" != "N/A" ]] && [[ "$hpa_cpu_current" -ge 80 ]]; then
+                hpa_limit_exceeded["$cluster|$namespace|$pod_name"]=$hpa_cpu_current
             fi
         fi
 
         # Verifica se o pod está com status diferente de "Running"
-        if [ "$POD_STATUS" != "Running" ]; then
-            pod_status_errors["$cluster|$namespace|$POD_NAME"]=$POD_STATUS
+        if [[ "$pod_status" != "Running" ]]; then
+            pod_status_errors["$cluster|$namespace|$pod_name"]=$pod_status
         fi
 
         # Obtém a contagem de reinicializações do pod
-        RESTART_COUNT=$(echo $pod | jq -r '.restartCount')
+        restart_count=$(echo "$pod_data" | jq -r '.restartCount')
 
         # Verifica se o pod teve reinicializações
-        if [ "$RESTART_COUNT" -gt 0 ]; then
-            pods_with_restarts["$cluster|$namespace|$POD_NAME"]=$RESTART_COUNT
+        if [[ "$restart_count" -gt 0 ]]; then
+            pods_with_restarts["$cluster|$namespace|$pod_name"]=$restart_count
         fi
 
         # Adiciona as informações do pod ao CSV
-        echo "$cluster;$namespace;$POD_NAME;$POD_STATUS;$CREATION_TIME;$RECENT_CHANGE;$ERROR_COUNT;$CPU_USAGE;$MEMORY_USAGE;$CPU_REQUEST;$MEMORY_REQUEST;$CPU_LIMIT;$MEMORY_LIMIT;$CPU_PERCENTAGE%;$MEMORY_PERCENTAGE%;$HPA_ENABLED;$HPA_MIN_REPLICAS;$HPA_MAX_REPLICAS;$HPA_CURRENT_REPLICAS;$HPA_CPU_TARGET;$HPA_CPU_CURRENT;$RESTART_COUNT" >> $CSV_FILE
+        printf "%s;%s;%s;%s;%s;%s;%d;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%d\n" \
+        "$cluster" "$namespace" "$pod_name" "$pod_status" "$creation_time" "$recent_change" "$error_count" \
+        "$cpu_usage" "$memory_usage" "$cpu_request" "$memory_request" "$cpu_limit" "$memory_limit" \
+        "$CPU_PERCENTAGE" "$MEMORY_PERCENTAGE" "$hpa_enabled" "$hpa_min_replicas" "$hpa_max_replicas" \
+        "$hpa_current_replicas" "$hpa_cpu_target" "$hpa_cpu_current" "$restart_count" >> "$CSV_FILE"
     done
 }
 
@@ -153,7 +164,9 @@ for index in "${!CLUSTERS_ARRAY[@]}"; do
     namespaces="${NAMESPACES_ARRAY[$index]}"
     pod_patterns="${POD_PATTERNS_ARRAY[$index]}"
 
-    IFS=',' read -r -a namespace_array <<< "$namespaces"
+    IFS=',' read -r -a namespace_array
+
+ <<< "$namespaces"
     IFS=',' read -r -a pattern_array <<< "$pod_patterns"
 
     for i in "${!namespace_array[@]}"; do
@@ -162,68 +175,58 @@ for index in "${!CLUSTERS_ARRAY[@]}"; do
 done
 
 # Geração de informações dos nodes para cada cluster
-echo "" >> $CSV_FILE
-echo "Cluster;Node;CPU Usage;CPU Usage (%);Memory Usage;Memory Usage (%)" >> $CSV_FILE
+printf "\nCluster;Node;CPU Usage;CPU Usage (%%);Memory Usage;Memory Usage (%%)\n" >> "$CSV_FILE"
 
 for cluster in "${CLUSTERS_ARRAY[@]}"; do
     # Muda para o contexto do cluster especificado
-    oc config use-context $cluster
-    
+    oc config use-context "$cluster"
+
     # Coleta as informações de todos os nodes usando o comando 'oc adm top nodes'
+    local line node_name node_cpu_usage node_cpu_percent node_memory_usage node_memory_percent
     oc adm top nodes --no-headers --use-protocol-buffers | while IFS= read -r line; do
-        NODE_NAME=$(echo $line | awk '{print $1}')
-        NODE_CPU_USAGE=$(echo $line | awk '{print $2}')
-        NODE_CPU_PERCENT=$(echo $line | awk '{print $3}')
-        NODE_MEMORY_USAGE=$(echo $line | awk '{print $4}')
-        NODE_MEMORY_PERCENT=$(echo $line | awk '{print $5}')
+        node_name=$(echo "$line" | awk '{print $1}')
+        node_cpu_usage=$(echo "$line" | awk '{print $2}')
+        node_cpu_percent=$(echo "$line" | awk '{print $3}')
+        node_memory_usage=$(echo "$line" | awk '{print $4}')
+        node_memory_percent=$(echo "$line" | awk '{print $5}')
 
         # Verifica se o node está próximo de seu limite de CPU ou memória
-        if [ "${NODE_CPU_PERCENT%?}" -ge 80 ] || [ "${NODE_MEMORY_PERCENT%?}" -ge 80 ]; then
-            node_limit_issues["$cluster|$NODE_NAME"]="CPU: $NODE_CPU_PERCENT, Memory: $NODE_MEMORY_PERCENT"
+        if [[ "${node_cpu_percent%?}" -ge 80 ]] || [[ "${node_memory_percent%?}" -ge 80 ]]; then
+            node_limit_issues["$cluster|$node_name"]="CPU: $node_cpu_percent, Memory: $node_memory_percent"
         fi
 
         # Adiciona as informações do node ao CSV
-        echo "$cluster;$NODE_NAME;$NODE_CPU_USAGE;$NODE_CPU_PERCENT;$NODE_MEMORY_USAGE;$NODE_MEMORY_PERCENT" >> $CSV_FILE
+        printf "%s;%s;%s;%s;%s;%s\n" "$cluster" "$node_name" "$node_cpu_usage" "$node_cpu_percent" "$node_memory_usage" "$node_memory_percent" >> "$CSV_FILE"
     done
 done
 
 # Geração do Relatório Final
-echo "" >> $CSV_FILE
-echo "Relatório Final:" >> $CSV_FILE
+{
+    printf "\nRelatório Final:\n"
+    printf "\nPods com status diferente de 'Running':\n"
+    for key in "${!pod_status_errors[@]}"; do
+        printf "%s -> %s\n" "$key" "${pod_status_errors[$key]}"
+    done
 
-# Pods que não estão com status Running
-echo "" >> $CSV_FILE
-echo "Pods com status diferente de 'Running':" >> $CSV_FILE
-for key in "${!pod_status_errors[@]}"; do
-    echo "$key -> ${pod_status_errors[$key]}" >> $CSV_FILE
-done
+    printf "\nPods com HPA acima de 80%% do limite:\n"
+    for key in "${!hpa_limit_exceeded[@]}"; do
+        printf "%s -> %s%%\n" "$key" "${hpa_limit_exceeded[$key]}"
+    done
 
-# Pods que estão utilizando 80% ou mais do limite de HPA
-echo "" >> $CSV_FILE
-echo "Pods com HPA acima de 80% do limite:" >> $CSV_FILE
-for key in "${!hpa_limit_exceeded[@]}"; do
-    echo "$key -> ${hpa_limit_exceeded[$key]}%" >> $CSV_FILE
-done
+    printf "\nPods com mais de 2000 erros nos logs:\n"
+    for key in "${!high_error_count[@]}"; do
+        printf "%s -> %d erros\n" "$key" "${high_error_count[$key]}"
+    done
 
-# Pods com mais de 2000 erros nos logs
-echo "" >> $CSV_FILE
-echo "Pods com mais de 2000 erros nos logs:" >> $CSV_FILE
-for key in "${!high_error_count[@]}"; do
-    echo "$key -> ${high_error_count[$key]} erros" >> $CSV_FILE
-done
+    printf "\nPods com reinicializações:\n"
+    for key in "${!pods_with_restarts[@]}"; do
+        printf "%s -> %d reinicializações\n" "$key" "${pods_with_restarts[$key]}"
+    done
 
-# Pods com reinicializações
-echo "" >> $CSV_FILE
-echo "Pods com reinicializações:" >> $CSV_FILE
-for key in "${!pods_with_restarts[@]}"; do
-    echo "$key -> ${pods_with_restarts[$key]} reinicializações" >> $CSV_FILE
-done
+    printf "\nNodes próximos ao limite de CPU ou memória:\n"
+    for key in "${!node_limit_issues[@]}"; do
+        printf "%s -> %s\n" "$key" "${node_limit_issues[$key]}"
+    done
+} >> "$CSV_FILE"
 
-# Nodes próximos ao limite de CPU ou memória
-echo "" >> $CSV_FILE
-echo "Nodes próximos ao limite de CPU ou memória:" >> $CSV_FILE
-for key in "${!node_limit_issues[@]}"; do
-    echo "$key -> ${node_limit_issues[$key]}" >> $CSV_FILE
-done
-
-echo "Relatório final gerado no CSV: $CSV_FILE"
+printf "Relatório final gerado no CSV: %s\n" "$CSV_FILE"

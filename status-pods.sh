@@ -182,7 +182,6 @@ for cluster in "${CLUSTERS_ARRAY[@]}"; do
     oc config use-context "$cluster"
 
     # Coleta as informações de todos os nodes usando o comando 'oc adm top nodes'
-    local line node_name node_cpu_usage node_cpu_percent node_memory_usage node_memory_percent
     oc adm top nodes --no-headers --use-protocol-buffers | while IFS= read -r line; do
         node_name=$(echo "$line" | awk '{print $1}')
         node_cpu_usage=$(echo "$line" | awk '{print $2}')
@@ -199,6 +198,7 @@ for cluster in "${CLUSTERS_ARRAY[@]}"; do
         printf "%s;%s;%s;%s;%s;%s\n" "$cluster" "$node_name" "$node_cpu_usage" "$node_cpu_percent" "$node_memory_usage" "$node_memory_percent" >> "$CSV_FILE"
     done
 done
+
 
 # Geração do Relatório Final
 {

@@ -61,10 +61,6 @@ function process_pods() {
     local cluster=$1
     local namespace=$2
     local pattern=$3
-    local -n ref_pod_status_errors=$4
-    local -n ref_hpa_limit_exceeded=$5
-    local -n ref_high_error_count=$6
-    local -n ref_pods_with_restarts=$7
 
     # Muda para o contexto do cluster especificado
     oc config use-context $cluster
@@ -96,7 +92,7 @@ function process_pods() {
         
         # Verifica se o erro conta é alto
         if [ "$ERROR_COUNT" -gt 2000 ]; then
-            ref_high_error_count["$cluster|$namespace|$POD_NAME"]=$ERROR_COUNT
+            high_error_count["$cluster|$namespace|$POD_NAME"]=$ERROR_COUNT
         fi
 
         # Obtém o uso de CPU e Memória
@@ -129,13 +125,13 @@ function process_pods() {
 
             # Verifica se o HPA está acima de 80% do limite
             if [ "$HPA_CPU_CURRENT" != "N/A" ] && [ "$HPA_CPU_CURRENT" -ge 80 ]; then
-                ref_hpa_limit_exceeded["$cluster|$namespace|$POD_NAME"]=$HPA_CPU_CURRENT
+                hpa_limit_exceeded["$cluster|$namespace|$POD_NAME"]=$HPA_CPU_CURRENT
             fi
         fi
 
         # Verifica se o pod está com status diferente de "Running"
         if [ "$POD_STATUS" != "Running" ]; then
-            ref_pod_status_errors["$cluster|$namespace|$POD_NAME"]=$POD_STATUS
+            pod_status_errors["$cluster|$namespace|$POD_NAME"]=$POD_STATUS
         fi
 
         # Obtém a contagem de reinicializações do pod
@@ -143,7 +139,7 @@ function process_pods() {
 
         # Verifica se o pod teve reinicializações
         if [ "$RESTART_COUNT" -gt 0 ]; then
-            ref_pods_with_restarts["$cluster|$namespace|$POD_NAME"]=$RESTART_COUNT
+            pods_with_restarts["$cluster|$namespace|$POD_NAME"]=$RESTART_COUNT
         fi
 
         # Adiciona as informações do pod ao CSV
@@ -161,7 +157,7 @@ for index in "${!CLUSTERS_ARRAY[@]}"; do
     IFS=',' read -r -a pattern_array <<< "$pod_patterns"
 
     for i in "${!namespace_array[@]}"; do
-        process_pods "$cluster" "${namespace_array[$i]}" "${pattern_array[$i]}" pod_status_errors hpa_limit_exceeded high_error_count pods_with_restarts
+        process_pods "$cluster" "${namespace_array[$i]}" "${pattern_array[$i]}"
     done
 done
 

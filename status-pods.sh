@@ -46,15 +46,14 @@ fi
 # Define o nome do arquivo CSV
 CSV_FILE="pods_status.csv"
 
+# Define o arquivo temporário para o relatório final
+FINAL_REPORT_FILE="final_report.tmp"
+
 # Inicializa o arquivo CSV com o cabeçalho
 printf "Cluster;Namespace;Pod Name;Status;Creation Time;Recent Change;Error Count;CPU Usage;Memory Usage;CPU Request;Memory Request;CPU Limit;Memory Limit;CPU Usage vs Limit;Memory Usage vs Limit;HPA Enabled;HPA Min Replicas;HPA Max Replicas;HPA Current Replicas;HPA CPU Target;HPA CPU Current;Restart Count\n" > "$CSV_FILE"
 
-# Inicializa variáveis para o relatório final (globais para serem persistentes)
-declare -gA pod_status_errors
-declare -gA hpa_limit_exceeded
-declare -gA high_error_count
-declare -gA pods_with_restarts
-declare -gA node_limit_issues
+# Inicializa o arquivo de relatório final
+> "$FINAL_REPORT_FILE"
 
 # Função para processar os pods em um namespace dentro de um cluster
 function process_pods() {
@@ -104,7 +103,7 @@ function process_pods() {
 
         # Verifica se o erro conta é alto
         if [[ "$error_count" -gt 2000 ]]; then
-            high_error_count["$cluster|$namespace|$pod_name"]=$error_count
+            printf "%s|%s|%s -> %d erros\n" "$cluster" "$namespace" "$pod_name" "$error_count" >> "$FINAL_REPORT_FILE"
         fi
 
         # Obtém o uso de CPU e Memória
@@ -137,13 +136,13 @@ function process_pods() {
 
             # Verifica se o HPA está acima de 80% do limite
             if [[ "$hpa_cpu_current" != "N/A" ]] && [[ "$hpa_cpu_current" -ge 80 ]]; then
-                hpa_limit_exceeded["$cluster|$namespace|$pod_name"]=$hpa_cpu_current
+                printf "%s|%s|%s -> %s%%\n" "$cluster" "$namespace" "$pod_name" "$hpa_cpu_current" >> "$FINAL_REPORT_FILE"
             fi
         fi
 
         # Verifica se o pod está com status diferente de "Running"
         if [[ "$pod_status" != "Running" ]]; then
-            pod_status_errors["$cluster|$namespace|$pod_name"]=$pod_status
+            printf "%s|%s|%s -> %s\n" "$cluster" "$namespace" "$pod_name" "$pod_status" >> "$FINAL_REPORT_FILE"
         fi
 
         # Obtém a contagem de reinicializações do pod
@@ -151,7 +150,7 @@ function process_pods() {
 
         # Verifica se o pod teve reinicializações
         if [[ "$restart_count" -gt 0 ]]; then
-            pods_with_restarts["$cluster|$namespace|$pod_name"]=$restart_count
+            printf "%s|%s|%s -> %d reinicializações\n" "$cluster" "$namespace" "$pod_name" "$restart_count" >> "$FINAL_REPORT_FILE"
         fi
 
         # Adiciona as informações do pod ao CSV
@@ -199,7 +198,7 @@ for cluster in "${CLUSTERS_ARRAY[@]}"; do
 
         # Verifica se o node está próximo de seu limite de CPU ou memória
         if [[ "${node_cpu_percent%?}" -ge 80 ]] || [[ "${node_memory_percent%?}" -ge 80 ]]; then
-            node_limit_issues["$cluster|$node_name"]="CPU: $node_cpu_percent, Memory: $node_memory_percent"
+            printf "%s|%s -> CPU: %s, Memory: %s\n" "$cluster" "$node_name" "$node_cpu_percent" "$node_memory_percent" >> "$FINAL_REPORT_FILE"
         fi
 
         # Adiciona as informações do node ao CSV
@@ -207,33 +206,26 @@ for cluster in "${CLUSTERS_ARRAY[@]}"; do
     done
 done
 
-# Geração do Relatório Final
+# Adiciona o conteúdo do relatório final ao CSV principal
 {
     printf "\nRelatório Final:\n"
     printf "\nPods com status diferente de 'Running':\n"
-    for key in "${!pod_status_errors[@]}"; do
-        printf "%s -> %s\n" "$key" "${pod_status_errors[$key]}"
-    done
+    grep " -> " "$FINAL_REPORT_FILE" | grep -E "-> (Pending|Failed|Unknown)" >> "$CSV_FILE"
 
     printf "\nPods com HPA acima de 80%% do limite:\n"
-    for key in "${!hpa_limit_exceeded[@]}"; do
-        printf "%s -> %s%%\n" "$key" "${hpa_limit_exceeded[$key]}"
-    done
+    grep " -> " "$FINAL_REPORT_FILE" | grep "HPA" >> "$CSV_FILE"
 
     printf "\nPods com mais de 2000 erros nos logs:\n"
-    for key in "${!high_error_count[@]}"; do
-        printf "%s -> %d erros\n" "$key" "${high_error_count[$key]}"
-    done
+    grep " -> " "$FINAL_REPORT_FILE" | grep "erros" >> "$CSV_FILE"
 
     printf "\nPods com reinicializações:\n"
-    for key in "${!pods_with_restarts[@]}"; do
-        printf "%s -> %d reinicializações\n" "$key" "${pods_with_restarts[$key]}"
-    done
+    grep " -> " "$FINAL_REPORT_FILE" | grep "reinicializações" >> "$CSV_FILE"
 
     printf "\nNodes próximos ao limite de CPU ou memória:\n"
-    for key in "${!node_limit_issues[@]}"; do
-        printf "%s -> %s\n" "$key" "${node_limit_issues[$key]}"
-    done
+    grep " -> " "$FINAL_REPORT_FILE" | grep "CPU" >> "$CSV_FILE"
 } >> "$CSV_FILE"
+
+# Remove o arquivo temporário
+rm -f "$FINAL_REPORT_FILE"
 
 printf "Relatório final gerado no CSV: %s\n" "$CSV_FILE"

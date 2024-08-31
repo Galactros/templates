@@ -210,19 +210,19 @@ done
 {
     printf "\nRelatório Final:\n"
     printf "\nPods com status diferente de 'Running':\n"
-    grep " -> " "$FINAL_REPORT_FILE" | grep -E "-> (Pending|Failed|Unknown)" >> "$CSV_FILE"
+    grep -F -- "-->" "$FINAL_REPORT_FILE" | grep -E -- "--> (Pending|Failed|Unknown)"
 
     printf "\nPods com HPA acima de 80%% do limite:\n"
-    grep " -> " "$FINAL_REPORT_FILE" | grep "HPA" >> "$CSV_FILE"
+    grep -F -- "-->" "$FINAL_REPORT_FILE" | grep -F "HPA"
 
     printf "\nPods com mais de 2000 erros nos logs:\n"
-    grep " -> " "$FINAL_REPORT_FILE" | grep "erros" >> "$CSV_FILE"
+    grep -F -- "-->" "$FINAL_REPORT_FILE" | grep -F "erros"
 
     printf "\nPods com reinicializações:\n"
-    grep " -> " "$FINAL_REPORT_FILE" | grep "reinicializações" >> "$CSV_FILE"
+    grep -F -- "-->" "$FINAL_REPORT_FILE" | grep -F "reinicializações"
 
     printf "\nNodes próximos ao limite de CPU ou memória:\n"
-    grep " -> " "$FINAL_REPORT_FILE" | grep "CPU" >> "$CSV_FILE"
+    grep -F -- "-->" "$FINAL_REPORT_FILE" | grep -F "CPU"
 } >> "$CSV_FILE"
 
 # Remove o arquivo temporário

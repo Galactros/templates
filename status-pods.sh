@@ -210,7 +210,7 @@ done
 {
     printf "\nRelatório Final:\n"
     printf "\nPods com status diferente de 'Running':\n"
-    grep " -> " "$FINAL_REPORT_FILE" | grep -E "-> (Pending|Failed|Unknown)" >> "$CSV_FILE"
+    grep " -> " "$FINAL_REPORT_FILE" | grep -E -- "-> (Pending|Failed|Unknown)" >> "$CSV_FILE"
 
     printf "\nPods com HPA acima de 80%% do limite:\n"
     grep " -> " "$FINAL_REPORT_FILE" | grep "HPA" >> "$CSV_FILE"

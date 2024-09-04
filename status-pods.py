@@ -119,7 +119,7 @@ def process_nodes(cluster, csv_writer, final_report_file):
 def append_final_report_to_csv(csv_file, final_report_file_name):
     """Adiciona o conteudo do final_report.tmp ao final do CSV"""
     with open(final_report_file_name, "r") as final_report_f, open(csv_file, "a", newline='') as csv_f:
-        csv_f.write("\nRelatório Final:\n")
+        csv_f.write("\nRelatorio Final:\n")
         csv_f.write(final_report_f.read())
 
 def main():

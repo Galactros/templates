@@ -5,28 +5,28 @@ import csv
 import time
 from datetime import datetime
 
-# Função para executar comandos no shell
+# Funcao para executar comandos no shell
 def run_command(command):
     result = subprocess.run(command, shell=True, capture_output=True, text=True)
     if result.returncode != 0:
         raise RuntimeError(f"Command '{command}' failed with error: {result.stderr}")
     return result.stdout
 
-# Função para processar os pods de um namespace dentro de um cluster
+# Funcao para processar os pods de um namespace dentro de um cluster
 def process_pods(cluster, namespace, pattern, csv_writer, final_report_file):
-    print(f"Processando cluster: {cluster}, namespace: {namespace}, padrão: {pattern}")
+    print(f"Processando cluster: {cluster}, namespace: {namespace}, padrao: {pattern}")
 
     # Muda para o contexto do cluster especificado
     run_command(f"oc config use-context {cluster}")
 
-    # Obtém todos os HPAs no namespace atual
+    # Obtem todos os HPAs no namespace atual
     hpa_list = run_command(f"oc get hpa -n {namespace} -o json")
     hpa_list_json = json.loads(hpa_list)
 
-    # Obtém a data/hora atual para comparar com o tempo de criação dos pods
+    # Obtem a data/hora atual para comparar com o tempo de criacao dos pods
     current_time = time.time()
 
-    # Obtém os pods no namespace e filtra pelo padrão de nome
+    # Obtem os pods no namespace e filtra pelo padrao de nome
     pod_list = run_command(f"oc get pods -n {namespace} -o json")
     pod_list_json = json.loads(pod_list)
 
@@ -45,20 +45,20 @@ def process_pods(cluster, namespace, pattern, csv_writer, final_report_file):
         logs = run_command(f"oc logs -n {namespace} {pod_name}")
         error_count = logs.count("ERRO")
 
-        # Verifica o uso de CPU e memória
+        # Verifica o uso de CPU e memoria
         resource_usage = run_command(f"oc adm top pod {pod_name} -n {namespace} --no-headers --use-protocol-buffers")
         resource_usage_data = resource_usage.split()
         cpu_usage = resource_usage_data[1]
         memory_usage = resource_usage_data[2]
 
-        # Obtém requisições e limites de CPU/memória
+        # Obtem requisicoes e limites de CPU/memoria
         containers = pod["spec"]["containers"]
         cpu_request = containers[0]["resources"]["requests"].get("cpu", "N/A")
         memory_request = containers[0]["resources"]["requests"].get("memory", "N/A")
         cpu_limit = containers[0]["resources"]["limits"].get("cpu", "N/A")
         memory_limit = containers[0]["resources"]["limits"].get("memory", "N/A")
 
-        # Verifica se o pod está sob um HPA e coleta informações
+        # Verifica se o pod esta sob um HPA e coleta informacoes
         hpa_info = next((hpa for hpa in hpa_list_json["items"] if pod_name in hpa["metadata"]["name"]), None)
         hpa_enabled = "No"
         hpa_min_replicas = hpa_max_replicas = hpa_current_replicas = hpa_cpu_target = hpa_cpu_current = "N/A"
@@ -73,16 +73,16 @@ def process_pods(cluster, namespace, pattern, csv_writer, final_report_file):
             if hpa_cpu_current != "N/A" and int(hpa_cpu_current) >= 80:
                 final_report_file.write(f"{cluster}|{namespace}|{pod_name} -> {hpa_cpu_current}%\n")
 
-        # Verifica se o pod está com status diferente de "Running"
+        # Verifica se o pod esta com status diferente de "Running"
         if pod_status != "Running":
             final_report_file.write(f"{cluster}|{namespace}|{pod_name} -> {pod_status}\n")
 
-        # Verifica o número de reinicializações
+        # Verifica o numero de reinicializacoes
         restart_count = pod["status"]["containerStatuses"][0]["restartCount"]
         if restart_count > 0:
-            final_report_file.write(f"{cluster}|{namespace}|{pod_name} -> {restart_count} reinicializações\n")
+            final_report_file.write(f"{cluster}|{namespace}|{pod_name} -> {restart_count} reinicializacoes\n")
 
-        # Adiciona as informações ao CSV
+        # Adiciona as informacoes ao CSV
         csv_writer.writerow([
             cluster, namespace, pod_name, pod_status, creation_time, recent_change, error_count,
             cpu_usage, memory_usage, cpu_request, memory_request, cpu_limit, memory_limit,
@@ -90,14 +90,14 @@ def process_pods(cluster, namespace, pattern, csv_writer, final_report_file):
             hpa_cpu_target, hpa_cpu_current, restart_count
         ])
 
-# Função para processar os nodes de um cluster
+# Funcao para processar os nodes de um cluster
 def process_nodes(cluster, csv_writer, final_report_file):
-    print(f"Processando informações dos nodes para o cluster: {cluster}")
+    print(f"Processando informacoes dos nodes para o cluster: {cluster}")
 
     # Muda para o contexto do cluster especificado
     run_command(f"oc config use-context {cluster}")
 
-    # Coleta as informações de todos os nodes
+    # Coleta as informacoes de todos os nodes
     node_list = run_command("oc adm top nodes --no-headers --use-protocol-buffers")
     
     for line in node_list.splitlines():
@@ -116,10 +116,10 @@ def process_nodes(cluster, csv_writer, final_report_file):
 
 def main():
     # Parseia os argumentos de linha de comando
-    parser = argparse.ArgumentParser(description="Script para coletar informações de pods e nodes em clusters OpenShift.")
-    parser.add_argument("-c", "--clusters", required=True, help="Lista de contextos dos clusters, separados por vírgulas")
-    parser.add_argument("-n", "--namespaces", required=True, help="Lista de namespaces, separados por vírgulas (um conjunto por cluster)")
-    parser.add_argument("-p", "--patterns", required=True, help="Lista de padrões de nomes de pods, separados por vírgulas (um conjunto por cluster)")
+    parser = argparse.ArgumentParser(description="Script para coletar informacoes de pods e nodes em clusters OpenShift.")
+    parser.add_argument("-c", "--clusters", required=True, help="Lista de contextos dos clusters, separados por virgulas")
+    parser.add_argument("-n", "--namespaces", required=True, help="Lista de namespaces, separados por ponto e virgula (um conjunto por cluster)")
+    parser.add_argument("-p", "--patterns", required=True, help="Lista de padroes de nomes de pods, separados por ponto e virgula (um conjunto por cluster)")
     args = parser.parse_args()
 
     clusters = args.clusters.split(',')
@@ -127,14 +127,14 @@ def main():
     patterns = args.patterns.split(';')
 
     if len(clusters) != len(namespaces) or len(namespaces) != len(patterns):
-        print("Erro: O número de clusters, namespaces e padrões de pods deve ser igual.")
+        print("Erro: O numero de clusters, namespaces e padroes de pods deve ser igual.")
         exit(1)
 
     # Define o nome do arquivo CSV
     csv_file = "pods_status.csv"
     final_report_file_name = "final_report.tmp"
 
-    # Abre os arquivos CSV e o relatório temporário
+    # Abre os arquivos CSV e o relatorio temporario
     with open(csv_file, mode="w", newline='') as csv_f, open(final_report_file_name, mode="w") as final_report_f:
         csv_writer = csv.writer(csv_f, delimiter=';')
         csv_writer.writerow(["Cluster", "Namespace", "Pod Name", "Status", "Creation Time", "Recent Change", "Error Count",
@@ -142,17 +142,17 @@ def main():
                              "CPU Usage vs Limit", "Memory Usage vs Limit", "HPA Enabled", "HPA Min Replicas", 
                              "HPA Max Replicas", "HPA Current Replicas", "HPA CPU Target", "HPA CPU Current", "Restart Count"])
 
-        # Processa os clusters, namespaces e padrões de pods
+        # Processa os clusters, namespaces e padroes de pods
         for i, cluster in enumerate(clusters):
             ns_list = namespaces[i].split(',')
             pattern_list = patterns[i].split(',')
             for j, ns in enumerate(ns_list):
                 process_pods(cluster, ns, pattern_list[j], csv_writer, final_report_f)
 
-            # Processa as informações dos nodes
+            # Processa as informacoes dos nodes
             process_nodes(cluster, csv_writer, final_report_f)
 
-    print(f"Relatório final gerado no CSV: {csv_file}")
+    print(f"Relatorio final gerado no CSV: {csv_file}")
 
 if __name__ == "__main__":
     main()

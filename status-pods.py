@@ -53,10 +53,12 @@ def process_pods(cluster, namespace, pattern, csv_writer, final_report_file):
 
         # Obtem requisicoes e limites de CPU/memoria
         containers = pod["spec"]["containers"]
-        cpu_request = containers[0]["resources"]["requests"].get("cpu", "N/A")
-        memory_request = containers[0]["resources"]["requests"].get("memory", "N/A")
-        cpu_limit = containers[0]["resources"]["limits"].get("cpu", "N/A")
-        memory_limit = containers[0]["resources"]["limits"].get("memory", "N/A")
+
+        # Verifica se as chaves 'requests' e 'limits' existem e captura os valores
+        cpu_request = containers[0]["resources"].get("requests", {}).get("cpu", "N/A")
+        memory_request = containers[0]["resources"].get("requests", {}).get("memory", "N/A")
+        cpu_limit = containers[0]["resources"].get("limits", {}).get("cpu", "N/A")
+        memory_limit = containers[0]["resources"].get("limits", {}).get("memory", "N/A")
 
         # Verifica se o pod esta sob um HPA e coleta informacoes
         hpa_info = next((hpa for hpa in hpa_list_json["items"] if pod_name in hpa["metadata"]["name"]), None)

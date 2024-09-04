@@ -116,6 +116,12 @@ def process_nodes(cluster, csv_writer, final_report_file):
         # Adiciona ao CSV
         csv_writer.writerow([cluster, node_name, node_cpu_usage, node_cpu_percent, node_memory_usage, node_memory_percent])
 
+def append_final_report_to_csv(csv_file, final_report_file_name):
+    """Adiciona o conteudo do final_report.tmp ao final do CSV"""
+    with open(final_report_file_name, "r") as final_report_f, open(csv_file, "a", newline='') as csv_f:
+        csv_f.write("\nRelatório Final:\n")
+        csv_f.write(final_report_f.read())
+
 def main():
     # Parseia os argumentos de linha de comando
     parser = argparse.ArgumentParser(description="Script para coletar informacoes de pods e nodes em clusters OpenShift.")
@@ -153,6 +159,9 @@ def main():
 
             # Processa as informacoes dos nodes
             process_nodes(cluster, csv_writer, final_report_f)
+
+    # Adiciona o conteudo do final_report.tmp ao final do CSV
+    append_final_report_to_csv(csv_file, final_report_file_name)
 
     print(f"Relatorio final gerado no CSV: {csv_file}")
 

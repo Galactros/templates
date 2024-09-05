@@ -4,6 +4,7 @@ from pod_processor import process_pods
 from node_processor import process_nodes
 from report_utils import append_final_report_to_csv
 from cluster_utils import login_to_cluster
+from command_utils import run_command
 
 def main():
     parser = argparse.ArgumentParser(description="Script para coletar informações de pods e nodes em clusters OpenShift.")
@@ -48,6 +49,22 @@ def main():
     append_final_report_to_csv(csv_file, final_report_file_name)
 
     print(f"Relatório final gerado no CSV: {csv_file}")
+
+def test_connectivity_in_pod(cluster, namespace, pod_name, url):
+    """
+    Função para testar conectividade dentro de um pod usando o comando curl -v
+    """
+    print(f"Testando conectividade no pod {pod_name} no cluster {cluster} para a URL {url}")
+
+    # Muda para o contexto do cluster especificado
+    run_command(f"oc config use-context {cluster}")
+
+    # Executa o comando curl dentro do pod
+    try:
+        result = run_command(f"oc exec -n {namespace} {pod_name} -- curl -v {url}")
+        return result
+    except RuntimeError as e:
+        return f"Erro ao executar curl no pod {pod_name}: {str(e)}"
 
 if __name__ == "__main__":
     main()

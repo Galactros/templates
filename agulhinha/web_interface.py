@@ -66,16 +66,21 @@ class WebInterface(BaseHTTPRequestHandler):
 
         try:
             # Executa o comando chamando o main.py
-            result = subprocess.run(command, capture_output=True, text=True)
+            result = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            stdout, stderr = result.communicate()
+
+            # Decodifica a saída para exibir na página
+            stdout = stdout.decode('utf-8')
+            stderr = stderr.decode('utf-8')
 
             # Exibe o resultado da execução na página
             self.send_response(200)
             self.send_header('Content-type', 'text/html')
             self.end_headers()
             self.wfile.write(b"<h2>Resultado da Execucao:</h2>")
-            self.wfile.write(bytes("<pre>" + result.stdout + "</pre>", "utf8"))
-            if result.stderr:
-                self.wfile.write(bytes("<pre style='color:red'>" + result.stderr + "</pre>", "utf8"))
+            self.wfile.write(bytes("<pre>" + stdout + "</pre>", "utf8"))
+            if stderr:
+                self.wfile.write(bytes("<pre style='color:red'>" + stderr + "</pre>", "utf8"))
 
         except Exception as e:
             self.send_response(500)
@@ -83,7 +88,7 @@ class WebInterface(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(bytes(f"<h2>Erro ao executar o script:</h2><p>{str(e)}</p>", "utf8"))
 
-def run(server_class=HTTPServer, handler_class=WebInterface, port=8080):
+def run(server_class=HTTPServer, handler_class=WebInterface, port=4545):
     server_address = ('', port)
     httpd = server_class(server_address, handler_class)
     print(f'Servidor web iniciado na porta {port}...')

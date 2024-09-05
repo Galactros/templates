@@ -3,20 +3,25 @@ import csv
 from pod_processor import process_pods
 from node_processor import process_nodes
 from report_utils import append_final_report_to_csv
+from cluster_utils import login_to_cluster
 
 def main():
-    parser = argparse.ArgumentParser(description="Script para coletar informacoes de pods e nodes em clusters OpenShift.")
-    parser.add_argument("-c", "--clusters", required=True, help="Lista de contextos dos clusters, separados por virgulas")
-    parser.add_argument("-n", "--namespaces", required=True, help="Lista de namespaces, separados por ponto e virgula (um conjunto por cluster)")
-    parser.add_argument("-p", "--patterns", required=True, help="Lista de padroes de nomes de pods, separados por ponto e virgula (um conjunto por cluster)")
+    parser = argparse.ArgumentParser(description="Script para coletar informações de pods e nodes em clusters OpenShift.")
+    parser.add_argument("-c", "--clusters", required=True, help="Lista de nomes dos clusters, separados por vírgulas (ex: cluster1,cluster2)")
+    parser.add_argument("-n", "--namespaces", required=True, help="Lista de namespaces, separados por ponto e vírgula (um conjunto por cluster)")
+    parser.add_argument("-p", "--patterns", required=True, help="Lista de padrões de nomes de pods, separados por ponto e vírgula (um conjunto por cluster)")
+    parser.add_argument("-u", "--username", required=True, help="Username para login em todos os clusters")
+    parser.add_argument("-pw", "--password", required=True, help="Senha para login em todos os clusters")
     args = parser.parse_args()
 
     clusters = args.clusters.split(',')
     namespaces = args.namespaces.split(';')
     patterns = args.patterns.split(';')
+    username = args.username
+    password = args.password
 
     if len(clusters) != len(namespaces) or len(namespaces) != len(patterns):
-        print("Erro: O numero de clusters, namespaces e padroes de pods deve ser igual.")
+        print("Erro: O número de clusters, namespaces e padrões de pods deve ser igual.")
         exit(1)
 
     csv_file = "pods_status.csv"
@@ -29,17 +34,20 @@ def main():
                              "CPU Usage vs Limit", "Memory Usage vs Limit", "HPA Enabled", "HPA Min Replicas", 
                              "HPA Max Replicas", "HPA Current Replicas", "HPA CPU Target", "HPA CPU Current", "Restart Count"])
 
-        for i, cluster in enumerate(clusters):
+        for i, cluster_name in enumerate(clusters):
+            # Login no cluster com o mesmo username e password para todos os clusters
+            login_to_cluster(cluster_name, username, password)
+            
             ns_list = namespaces[i].split(',')
             pattern_list = patterns[i].split(',')
             for j, ns in enumerate(ns_list):
-                process_pods(cluster, ns, pattern_list[j], csv_writer, final_report_f)
+                process_pods(cluster_name, ns, pattern_list[j], csv_writer, final_report_f)
 
-            process_nodes(cluster, csv_writer, final_report_f)
+            process_nodes(cluster_name, csv_writer, final_report_f)
 
     append_final_report_to_csv(csv_file, final_report_file_name)
 
-    print(f"Relatorio final gerado no CSV: {csv_file}")
+    print(f"Relatório final gerado no CSV: {csv_file}")
 
 if __name__ == "__main__":
     main()

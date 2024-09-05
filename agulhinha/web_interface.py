@@ -69,18 +69,35 @@ class WebInterface(BaseHTTPRequestHandler):
             result = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             stdout, stderr = result.communicate()
 
-            # Decodifica a saída para exibir na página
-            stdout = stdout.decode('utf-8')
-            stderr = stderr.decode('utf-8')
+            # Verifica se houve erro
+            if result.returncode != 0:
+                self.send_response(500)
+                self.send_header('Content-type', 'text/html')
+                self.end_headers()
+                self.wfile.write(bytes(f"<h2>Erro ao executar o script:</h2><pre>{stderr.decode('utf-8')}</pre>", "utf8"))
+                return
 
-            # Exibe o resultado da execução na página
-            self.send_response(200)
-            self.send_header('Content-type', 'text/html')
-            self.end_headers()
-            self.wfile.write(b"<h2>Resultado da Execucao:</h2>")
-            self.wfile.write(bytes("<pre>" + stdout + "</pre>", "utf8"))
-            if stderr:
-                self.wfile.write(bytes("<pre style='color:red'>" + stderr + "</pre>", "utf8"))
+            # Nome do arquivo CSV gerado
+            csv_file = "pods_status.csv"
+
+            # Verifica se o arquivo foi gerado
+            if os.path.exists(csv_file):
+                # Envia o arquivo CSV para download
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/csv')
+                self.send_header('Content-Disposition', 'attachment; filename="pods_status.csv"')
+                self.end_headers()
+
+                # Lê e envia o conteúdo do arquivo CSV
+                with open(csv_file, 'rb') as file:
+                    self.wfile.write(file.read())
+
+            else:
+                # Caso o arquivo CSV não tenha sido gerado
+                self.send_response(500)
+                self.send_header('Content-type', 'text/html')
+                self.end_headers()
+                self.wfile.write(b"<h2>Erro: Arquivo CSV nao foi gerado.</h2>")
 
         except Exception as e:
             self.send_response(500)

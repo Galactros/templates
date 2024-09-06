@@ -39,18 +39,12 @@ class WebInterface(BaseHTTPRequestHandler):
                 <input type="text" id="pod_name" name="pod_name"><br><br>
                 <label for="url">URL para testar:</label><br>
                 <input type="text" id="url" name="url" value="http://www.google.com"><br><br>
-                <input type="hidden" name="username" value=""><!-- Será preenchido com JavaScript -->
-                <input type="hidden" name="password" value=""><!-- Será preenchido com JavaScript -->
+                <label for="username">Username:</label><br>
+                <input type="text" id="username" name="username"><br><br>
+                <label for="password">Password:</label><br>
+                <input type="password" id="password" name="password"><br><br>
                 <input type="submit" value="Testar Conectividade">
             </form>
-
-            <script>
-                // Preenche os campos de username e password no formulário de teste de conectividade
-                document.querySelector('form[action="/test-connectivity"] input[name="username"]').value =
-                    document.querySelector('form[action="/execute-script"] input[name="username"]').value;
-                document.querySelector('form[action="/test-connectivity"] input[name="password"]').value =
-                    document.querySelector('form[action="/execute-script"] input[name="password"]').value;
-            </script>
         </body>
         </html>
         '''

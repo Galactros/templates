@@ -2,7 +2,7 @@ import os
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import urllib.parse
 import subprocess
-from main import test_connectivity_in_pod
+from main import test_connectivity_in_pod, login_to_cluster
 
 class WebInterface(BaseHTTPRequestHandler):
 
@@ -39,8 +39,18 @@ class WebInterface(BaseHTTPRequestHandler):
                 <input type="text" id="pod_name" name="pod_name"><br><br>
                 <label for="url">URL para testar:</label><br>
                 <input type="text" id="url" name="url" value="http://www.google.com"><br><br>
+                <input type="hidden" name="username" value=""><!-- Será preenchido com JavaScript -->
+                <input type="hidden" name="password" value=""><!-- Será preenchido com JavaScript -->
                 <input type="submit" value="Testar Conectividade">
             </form>
+
+            <script>
+                // Preenche os campos de username e password no formulário de teste de conectividade
+                document.querySelector('form[action="/test-connectivity"] input[name="username"]').value =
+                    document.querySelector('form[action="/execute-script"] input[name="username"]').value;
+                document.querySelector('form[action="/test-connectivity"] input[name="password"]').value =
+                    document.querySelector('form[action="/execute-script"] input[name="password"]').value;
+            </script>
         </body>
         </html>
         '''
@@ -135,14 +145,19 @@ class WebInterface(BaseHTTPRequestHandler):
         namespace = params.get('namespace', [''])[0]
         pod_name = params.get('pod_name', [''])[0]
         url = params.get('url', [''])[0]
+        username = params.get('username', [''])[0]
+        password = params.get('password', [''])[0]
 
         # Verifica se todos os campos foram preenchidos
-        if not all([cluster, namespace, pod_name, url]):
+        if not all([cluster, namespace, pod_name, url, username, password]):
             self.send_response(400)
             self.send_header('Content-type', 'text/html')
             self.end_headers()
             self.wfile.write(b"Todos os campos sao obrigatorios!")
             return
+
+        # Conecta ao cluster antes de realizar o teste
+        login_to_cluster(cluster, username, password)
 
         # Executa o teste de conectividade no pod
         result = test_connectivity_in_pod(cluster, namespace, pod_name, url)

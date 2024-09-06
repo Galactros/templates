@@ -1,5 +1,8 @@
 import argparse
+import json
 import csv
+import os
+import tarfile
 from pod_processor import process_pods
 from node_processor import process_nodes
 from report_utils import append_final_report_to_csv
@@ -65,6 +68,44 @@ def test_connectivity_in_pod(cluster, namespace, pod_name, url):
         return result
     except RuntimeError as e:
         return f"Erro ao executar curl no pod {pod_name}: {str(e)}"
+
+def collect_logs_from_pods(cluster, namespace, pattern, username, password):
+    """
+    Coleta os logs de todos os pods que correspondem ao padrão no workload e compacta em um arquivo .tar.gz
+    """
+    # Muda para o contexto do cluster especificado
+    login_to_cluster(cluster, username, password)
+
+    # Cria diretório temporário para armazenar os logs
+    log_dir = f"{cluster}_{namespace}_logs"
+    os.makedirs(log_dir, exist_ok=True)
+
+    # Obtem a lista de pods no namespace que correspondem ao padrão do workload
+    pod_list = run_command(f"oc get pods -n {namespace} -o json")
+    pod_list_json = json.loads(pod_list)
+
+    log_files = []
+    for pod in pod_list_json["items"]:
+        pod_name = pod["metadata"]["name"]
+        if pattern not in pod_name:
+            continue
+
+        # Coleta os logs do pod
+        logs = run_command(f"oc logs -n {namespace} {pod_name}")
+
+        # Salva os logs em um arquivo de texto dentro do diretório de logs
+        log_file_path = os.path.join(log_dir, f"{pod_name}.log")
+        with open(log_file_path, "w") as log_file:
+            log_file.write(logs)
+        log_files.append(log_file_path)
+
+    # Compacta todos os arquivos de log em um único arquivo .tar.gz
+    tar_file_path = f"{log_dir}.tar.gz"
+    with tarfile.open(tar_file_path, "w:gz") as tar:
+        for log_file in log_files:
+            tar.add(log_file, arcname=os.path.basename(log_file))
+
+    return tar_file_path
 
 if __name__ == "__main__":
     main()

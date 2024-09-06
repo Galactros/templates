@@ -2,7 +2,7 @@ import os
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import urllib.parse
 import subprocess
-from main import test_connectivity_in_pod, login_to_cluster
+from main import test_connectivity_in_pod, login_to_cluster, collect_logs_from_pods
 
 class WebInterface(BaseHTTPRequestHandler):
 
@@ -45,6 +45,21 @@ class WebInterface(BaseHTTPRequestHandler):
                 <input type="password" id="password" name="password"><br><br>
                 <input type="submit" value="Testar Conectividade">
             </form>
+
+            <h2>Coletar logs do workload</h2>
+            <form method="POST" action="/collect-logs">
+                <label for="cluster">Cluster:</label><br>
+                <input type="text" id="cluster" name="cluster"><br><br>
+                <label for="namespace">Namespace:</label><br>
+                <input type="text" id="namespace" name="namespace"><br><br>
+                <label for="pattern">Padrão de Pods (Workload):</label><br>
+                <input type="text" id="pattern" name="pattern"><br><br>
+                <label for="username">Username:</label><br>
+                <input type="text" id="username" name="username"><br><br>
+                <label for="password">Password:</label><br>
+                <input type="password" id="password" name="password"><br><br>
+                <input type="submit" value="Coletar Logs">
+            </form>
         </body>
         </html>
         '''
@@ -57,6 +72,8 @@ class WebInterface(BaseHTTPRequestHandler):
             self.execute_script()
         elif self.path == '/test-connectivity':
             self.test_connectivity()
+        elif self.path == '/collect-logs':
+            self.collect_logs()
 
     # Função para executar o script principal
     def execute_script(self):
@@ -163,6 +180,45 @@ class WebInterface(BaseHTTPRequestHandler):
         self.wfile.write(b"<h2>Resultado do Teste de Conectividade:</h2>")
         self.wfile.write(bytes(f"<pre>{result}</pre>", "utf8"))
 
+# Função para coletar logs dos pods de um workload e compactá-los
+    def collect_logs(self):
+        content_length = int(self.headers['Content-Length'])
+        post_data = self.rfile.read(content_length)
+        params = urllib.parse.parse_qs(post_data.decode('utf-8'))
+
+        cluster = params.get('cluster', [''])[0]
+        namespace = params.get('namespace', [''])[0]
+        pattern = params.get('pattern', [''])[0]
+        username = params.get('username', [''])[0]
+        password = params.get('password', [''])[0]
+
+        # Verifica se todos os campos foram preenchidos
+        if not all([cluster, namespace, pattern, username, password]):
+            self.send_response(400)
+            self.send_header('Content-type', 'text/html')
+            self.end_headers()
+            self.wfile.write(b"Todos os campos sao obrigatorios!")
+            return
+
+        try:
+            # Coleta e compacta os logs dos pods
+            tar_file_path = collect_logs_from_pods(cluster, namespace, pattern, username, password)
+
+            # Envia o arquivo .tar.gz para download
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/gzip')
+            self.send_header(f'Content-Disposition', f'attachment; filename="{os.path.basename(tar_file_path)}"')
+            self.end_headers()
+
+            # Lê e envia o conteúdo do arquivo tar.gz
+            with open(tar_file_path, 'rb') as tar_file:
+                self.wfile.write(tar_file.read())
+
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-type', 'text/html')
+            self.end_headers()
+            self.wfile.write(bytes(f"<h2>Erro ao coletar logs:</h2><p>{str(e)}</p>", "utf8"))
 
 def run(server_class=HTTPServer, handler_class=WebInterface, port=4545):
     server_address = ('', port)

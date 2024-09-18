@@ -19,7 +19,7 @@ def login_to_cluster(cluster_name, username, password):
     try:
         if not is_logged_in(cluster_name):
             print(f"Conectando ao cluster {cluster_name}...")
-            login_command = f"oc login {cluster_url} --username {username} --password {password}"
+            login_command = f"oc login --insecure-skip-tls-verify=true --context={cluster_name} {cluster_url} --username {username} --password {password}"
             run_command(login_command)
         else:
             print(f"Já conectado ao cluster {cluster_name}.")

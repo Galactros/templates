@@ -100,7 +100,7 @@ def collect_logs_from_pods(cluster, namespace, pattern, username, password):
         log_files.append(log_file_path)
 
     # Compacta todos os arquivos de log em um único arquivo .tar.gz
-    tar_file_path = f"{log_dir}.tar.gz"
+    tar_file_path = f"{log_dir}-{pattern}.tar.gz"
     with tarfile.open(tar_file_path, "w:gz") as tar:
         for log_file in log_files:
             tar.add(log_file, arcname=os.path.basename(log_file))

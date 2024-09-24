@@ -3,6 +3,27 @@ import time
 from datetime import datetime
 from command_utils import run_command
 
+def find_deployment_for_pod(pod, namespace):
+    owner_references = pod["metadata"].get("ownerReferences", [])
+    for owner in owner_references:
+        if owner.get("controller", False):
+            owner_kind = owner["kind"]
+            owner_name = owner["name"]
+            if owner_kind == "ReplicaSet":
+                # Get the ReplicaSet and find its owner
+                rs_json = run_command(f"oc get replicaset {owner_name} -n {namespace} -o json")
+                rs = json.loads(rs_json)
+                rs_owner_references = rs["metadata"].get("ownerReferences", [])
+                for rs_owner in rs_owner_references:
+                    if rs_owner.get("controller", False):
+                        rs_owner_kind = rs_owner["kind"]
+                        rs_owner_name = rs_owner["name"]
+                        if rs_owner_kind == "Deployment":
+                            return rs_owner_name
+            elif owner_kind == "Deployment":
+                return owner_name
+    return None
+
 def process_pods(cluster, namespace, pattern, csv_writer, final_report_file):
     print(f"Processando cluster: {cluster}, namespace: {namespace}, padrao: {pattern}")
     
@@ -12,6 +33,14 @@ def process_pods(cluster, namespace, pattern, csv_writer, final_report_file):
     current_time = time.time()
     pod_list = run_command(f"oc get pods -n {namespace} -o json")
     pod_list_json = json.loads(pod_list)
+
+    # Build a mapping from (kind, name) to HPA
+    hpa_targets = {}
+    for hpa in hpa_list_json["items"]:
+        scale_target_ref = hpa["spec"]["scaleTargetRef"]
+        target_kind = scale_target_ref["kind"]
+        target_name = scale_target_ref["name"]
+        hpa_targets[(target_kind, target_name)] = hpa
 
     for pod in pod_list_json["items"]:
         pod_name = pod["metadata"]["name"]
@@ -38,7 +67,14 @@ def process_pods(cluster, namespace, pattern, csv_writer, final_report_file):
         cpu_limit = containers[0]["resources"].get("limits", {}).get("cpu", "N/A")
         memory_limit = containers[0]["resources"].get("limits", {}).get("memory", "N/A")
 
-        hpa_info = next((hpa for hpa in hpa_list_json["items"] if pod_name in hpa["metadata"]["name"]), None)
+        # Find the Deployment name
+        deployment_name = find_deployment_for_pod(pod, namespace)
+        if deployment_name:
+            # Check if there is an HPA targeting this deployment
+            hpa_info = hpa_targets.get(("Deployment", deployment_name), None)
+        else:
+            hpa_info = None
+
         hpa_enabled = "No"
         hpa_min_replicas = hpa_max_replicas = hpa_current_replicas = hpa_cpu_target = hpa_cpu_current = "N/A"
 

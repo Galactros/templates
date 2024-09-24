@@ -67,6 +67,13 @@ def process_pods(cluster, namespace, pattern, csv_writer, final_report_file):
         cpu_limit = containers[0]["resources"].get("limits", {}).get("cpu", "N/A")
         memory_limit = containers[0]["resources"].get("limits", {}).get("memory", "N/A")
 
+        # Extract the container image tag
+        image = containers[0]["image"]
+        if ':' in image:
+            tag = image.split(':')[-1]
+        else:
+            tag = 'latest'
+
         # Find the Deployment name
         deployment_name = find_deployment_for_pod(pod, namespace)
         if deployment_name:
@@ -97,7 +104,7 @@ def process_pods(cluster, namespace, pattern, csv_writer, final_report_file):
 
         csv_writer.writerow([
             cluster, namespace, pod_name, pod_status, creation_time, recent_change, error_count,
-            cpu_usage, memory_usage, cpu_request, memory_request, cpu_limit, memory_limit,
+            cpu_usage, memory_usage, cpu_request, memory_request, cpu_limit, memory_limit,tag,
             "N/A", "N/A", hpa_enabled, hpa_min_replicas, hpa_max_replicas, hpa_current_replicas,
             hpa_cpu_target, hpa_cpu_current, restart_count
         ])

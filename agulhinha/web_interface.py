@@ -56,7 +56,7 @@ class WebInterface(BaseHTTPRequestHandler):
         <!DOCTYPE html>
         <html>
         <head>
-            <meta charset="utf-8">  <!-- Especifica a codificação no HTML -->
+            <meta charset="utf-8">
             <title>Login - OpenShift Tool Interface</title>
             <style>
                 body {{ font-family: Arial, sans-serif; background-color: #f2f2f2; }}
@@ -82,67 +82,7 @@ class WebInterface(BaseHTTPRequestHandler):
                 input[type="submit"]:hover {{
                     background-color: #218838;
                 }}
-                /* Estilos para o overlay de carregamento e spinner */
-                #loading-overlay {{
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    width: 100%;
-                    height: 100%;
-                    background-color: rgba(0, 0, 0, 0.5);
-                    z-index: 9999;
-                    display: none;
-                    flex-direction: column;
-                    justify-content: center;
-                    align-items: center;
-                    color: #fff;
-                }}
-
-                .spinner {{
-                    border: 16px solid #f3f3f3;
-                    border-top: 16px solid #3498db;
-                    border-radius: 50%;
-                    width: 120px;
-                    height: 120px;
-                    animation: spin 2s linear infinite;
-                    margin-bottom: 20px;
-                }}
-
-                @keyframes spin {{
-                    0% {{ transform: rotate(0deg); }}
-                    100% {{ transform: rotate(360deg); }}
-                }}
             </style>
-            <script>
-                function showLoadingOverlay() {{
-                    document.getElementById('loading-overlay').style.display = 'flex';
-                }}
-
-                function validateForm(event) {{
-                    const form = event.target;
-                    const inputs = form.querySelectorAll('input[required]');
-                    let valid = true;
-                    inputs.forEach(input => {{
-                        if (input.value.trim() === '') {{
-                            valid = false;
-                            input.style.borderColor = 'red';
-                        }} else {{
-                            input.style.borderColor = '#ccc';
-                        }}
-                    }});
-                    if (!valid) {{
-                        event.preventDefault();
-                        alert('Por favor, preencha todos os campos obrigatórios.');
-                    }} else {{
-                        showLoadingOverlay();
-                    }}
-                }}
-
-                window.onload = function() {{
-                    const form = document.querySelector('form');
-                    form.addEventListener('submit', validateForm);
-                }};
-            </script>
         </head>
         <body>
             <div class="login-container">
@@ -155,11 +95,6 @@ class WebInterface(BaseHTTPRequestHandler):
                     <input type="password" id="password" name="password" required><br><br>
                     <input type="submit" value="Entrar">
                 </form>
-            </div>
-            <!-- Overlay de carregamento -->
-            <div id="loading-overlay">
-                <div class="spinner"></div>
-                <p>Processando sua solicitação...</p>
             </div>
         </body>
         </html>
@@ -213,7 +148,7 @@ class WebInterface(BaseHTTPRequestHandler):
         <!DOCTYPE html>
         <html>
         <head>
-            <meta charset="utf-8">  <!-- Especifica a codificação no HTML -->
+            <meta charset="utf-8">
             <title>OpenShift Tool Interface</title>
             <style>
                 body {{
@@ -284,42 +219,9 @@ class WebInterface(BaseHTTPRequestHandler):
                 .logout a:hover {{
                     background-color: #c82333;
                 }}
-                /* Estilos para o overlay de carregamento e spinner */
-                #loading-overlay {{
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    width: 100%;
-                    height: 100%;
-                    background-color: rgba(0, 0, 0, 0.5);
-                    z-index: 9999;
-                    display: none;
-                    flex-direction: column;
-                    justify-content: center;
-                    align-items: center;
-                    color: #fff;
-                }}
-
-                .spinner {{
-                    border: 16px solid #f3f3f3;
-                    border-top: 16px solid #3498db;
-                    border-radius: 50%;
-                    width: 120px;
-                    height: 120px;
-                    animation: spin 2s linear infinite;
-                    margin-bottom: 20px;
-                }}
-
-                @keyframes spin {{
-                    0% {{ transform: rotate(0deg); }}
-                    100% {{ transform: rotate(360deg); }}
-                }}
             </style>
             <script>
-                function showLoadingOverlay() {{
-                    document.getElementById('loading-overlay').style.display = 'flex';
-                }}
-
+                // Função para validar os formulários
                 function validateForm(event) {{
                     const form = event.target;
                     const inputs = form.querySelectorAll('input[required]');
@@ -335,11 +237,9 @@ class WebInterface(BaseHTTPRequestHandler):
                     if (!valid) {{
                         event.preventDefault();
                         alert('Por favor, preencha todos os campos obrigatórios.');
-                    }} else {{
-                        showLoadingOverlay();
                     }}
                 }}
-
+                // Adicionar evento de validação aos formulários ao carregar a página
                 window.onload = function() {{
                     const forms = document.querySelectorAll('form');
                     forms.forEach(form => {{
@@ -399,11 +299,6 @@ class WebInterface(BaseHTTPRequestHandler):
 
                     <input type="submit" value="Coletar Logs">
                 </form>
-            </div>
-            <!-- Overlay de carregamento -->
-            <div id="loading-overlay">
-                <div class="spinner"></div>
-                <p>Processando sua solicitação...</p>
             </div>
         </body>
         </html>
@@ -466,10 +361,9 @@ class WebInterface(BaseHTTPRequestHandler):
             # Verifica se houve erro
             if result.returncode != 0:
                 self.send_response(500)
-                self.send_header('Content-type', 'text/html; charset=utf-8')
+                self.send_header('Content-type', 'text/html')
                 self.end_headers()
-                mensagem = f"<h2>Erro ao executar o script:</h2><pre>{stderr.decode('utf-8')}</pre>"
-                self.wfile.write(mensagem.encode('utf-8'))
+                self.wfile.write(bytes(f"<h2>Erro ao executar o script:</h2><pre>{stderr.decode('utf-8')}</pre>", "utf8"))
                 return
 
             # Nome do arquivo CSV gerado
@@ -490,17 +384,15 @@ class WebInterface(BaseHTTPRequestHandler):
             else:
                 # Caso o arquivo CSV não tenha sido gerado
                 self.send_response(500)
-                self.send_header('Content-type', 'text/html; charset=utf-8')
+                self.send_header('Content-type', 'text/html')
                 self.end_headers()
-                mensagem = "<h2>Erro: Arquivo CSV não foi gerado.</h2>"
-                self.wfile.write(mensagem.encode('utf-8'))
+                self.wfile.write(b"<h2>Erro: Arquivo CSV nao foi gerado.</h2>")
 
         except Exception as e:
             self.send_response(500)
-            self.send_header('Content-type', 'text/html; charset=utf-8')
+            self.send_header('Content-type', 'text/html')
             self.end_headers()
-            mensagem = f"<h2>Erro ao executar o script:</h2><p>{str(e)}</p>"
-            self.wfile.write(mensagem.encode('utf-8'))
+            self.wfile.write(bytes(f"<h2>Erro ao executar o script:</h2><p>{str(e)}</p>", "utf8"))
 
     # Função para testar conectividade em um pod
     def test_connectivity(self, session):
@@ -518,31 +410,23 @@ class WebInterface(BaseHTTPRequestHandler):
         # Verifica se todos os campos foram preenchidos
         if not all([cluster, namespace, pod_name, url]):
             self.send_response(400)
-            self.send_header('Content-type', 'text/html; charset=utf-8')
+            self.send_header('Content-type', 'text/html')
             self.end_headers()
-            mensagem = "Todos os campos são obrigatórios!"
-            self.wfile.write(mensagem.encode('utf-8'))
+            self.wfile.write(b"Todos os campos sao obrigatorios!")
             return
 
-        try:
-            # Conecta ao cluster antes de realizar o teste
-            login_to_cluster(cluster, username, password)
+        # Conecta ao cluster antes de realizar o teste
+        login_to_cluster(cluster, username, password)
 
-            # Executa o teste de conectividade no pod
-            result = test_connectivity_in_pod(cluster, namespace, pod_name, url)
+        # Executa o teste de conectividade no pod
+        result = test_connectivity_in_pod(cluster, namespace, pod_name, url)
 
-            # Exibe o resultado na página
-            self.send_response(200)
-            self.send_header('Content-type', 'text/html; charset=utf-8')
-            self.end_headers()
-            mensagem = f"<h2>Resultado do Teste de Conectividade:</h2><pre>{result}</pre>"
-            self.wfile.write(mensagem.encode('utf-8'))
-        except Exception as e:
-            self.send_response(500)
-            self.send_header('Content-type', 'text/html; charset=utf-8')
-            self.end_headers()
-            mensagem = f"<h2>Erro ao testar conectividade:</h2><p>{str(e)}</p>"
-            self.wfile.write(mensagem.encode('utf-8'))
+        # Exibe o resultado na página
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html')
+        self.end_headers()
+        self.wfile.write(b"<h2>Resultado do Teste de Conectividade:</h2>")
+        self.wfile.write(bytes(f"<pre>{result}</pre>", "utf8"))
 
     # Função para coletar logs dos pods de um workload e compactá-los
     def collect_logs(self, session):
@@ -559,10 +443,9 @@ class WebInterface(BaseHTTPRequestHandler):
         # Verifica se todos os campos foram preenchidos
         if not all([cluster, namespace, pattern]):
             self.send_response(400)
-            self.send_header('Content-type', 'text/html; charset=utf-8')
+            self.send_header('Content-type', 'text/html')
             self.end_headers()
-            mensagem = "Todos os campos são obrigatórios!"
-            self.wfile.write(mensagem.encode('utf-8'))
+            self.wfile.write(b"Todos os campos sao obrigatorios!")
             return
 
         try:
@@ -581,10 +464,9 @@ class WebInterface(BaseHTTPRequestHandler):
 
         except Exception as e:
             self.send_response(500)
-            self.send_header('Content-type', 'text/html; charset=utf-8')
+            self.send_header('Content-type', 'text/html')
             self.end_headers()
-            mensagem = f"<h2>Erro ao coletar logs:</h2><p>{str(e)}</p>"
-            self.wfile.write(mensagem.encode('utf-8'))
+            self.wfile.write(bytes(f"<h2>Erro ao coletar logs:</h2><p>{str(e)}</p>", "utf8"))
 
 def run(server_class=HTTPServer, handler_class=WebInterface, port=4545):
     server_address = ('', port)

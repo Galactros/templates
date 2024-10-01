@@ -50,12 +50,13 @@ class WebInterface(BaseHTTPRequestHandler):
     # Função para exibir a página de login
     def show_login_page(self, error_message=None):
         self.send_response(200)
-        self.send_header('Content-type', 'text/html')
+        self.send_header('Content-type', 'text/html; charset=utf-8')  # Inclui o charset no cabeçalho
         self.end_headers()
         html = f'''
         <!DOCTYPE html>
         <html>
         <head>
+            <meta charset="utf-8">  # Especifica a codificação no HTML
             <title>Login - OpenShift Tool Interface</title>
             <style>
                 body {{ font-family: Arial, sans-serif; background-color: #f2f2f2; }}
@@ -98,7 +99,7 @@ class WebInterface(BaseHTTPRequestHandler):
         </body>
         </html>
         '''
-        self.wfile.write(bytes(html, "utf8"))
+        self.wfile.write(html.encode('utf-8'))  # Codifica o HTML em UTF-8 antes de enviar
 
     # Função para processar o login
     def handle_login(self):
@@ -110,9 +111,6 @@ class WebInterface(BaseHTTPRequestHandler):
         password = params.get('password', [''])[0]
 
         if username and password:
-            # Aqui você pode adicionar lógica para validar o usuário, se necessário
-            # Por exemplo, verificar se o usuário existe em um banco de dados
-
             # Cria um ID de sessão único
             session_id = str(uuid.uuid4())
             # Armazena as credenciais na sessão
@@ -144,12 +142,13 @@ class WebInterface(BaseHTTPRequestHandler):
     def show_main_page(self, session):
         username = session['username']
         self.send_response(200)
-        self.send_header('Content-type', 'text/html')
+        self.send_header('Content-type', 'text/html; charset=utf-8')  # Inclui o charset no cabeçalho
         self.end_headers()
         html = f'''
         <!DOCTYPE html>
         <html>
         <head>
+            <meta charset="utf-8">  # Especifica a codificação no HTML
             <title>OpenShift Tool Interface</title>
             <style>
                 body {{
@@ -304,7 +303,7 @@ class WebInterface(BaseHTTPRequestHandler):
         </body>
         </html>
         '''
-        self.wfile.write(bytes(html, "utf8"))
+        self.wfile.write(html.encode('utf-8'))  # Codifica o HTML em UTF-8 antes de enviar
 
     # Função para processar o logout
     def handle_logout(self):
@@ -338,9 +337,10 @@ class WebInterface(BaseHTTPRequestHandler):
         # Verifica se todos os campos foram preenchidos
         if not all([clusters, namespaces, patterns]):
             self.send_response(400)
-            self.send_header('Content-type', 'text/html')
+            self.send_header('Content-type', 'text/html; charset=utf-8')
             self.end_headers()
-            self.wfile.write(b"Todos os campos sao obrigatorios!")
+            mensagem = "Todos os campos são obrigatórios!"
+            self.wfile.write(mensagem.encode('utf-8'))
             return
 
         # Monta o comando para chamar o main.py com os parâmetros

@@ -56,7 +56,7 @@ class WebInterface(BaseHTTPRequestHandler):
         <!DOCTYPE html>
         <html>
         <head>
-            <meta charset="utf-8">  # Especifica a codificação no HTML
+            <meta charset="utf-8">
             <title>Login - OpenShift Tool Interface</title>
             <style>
                 body {{ font-family: Arial, sans-serif; background-color: #f2f2f2; }}
@@ -148,7 +148,7 @@ class WebInterface(BaseHTTPRequestHandler):
         <!DOCTYPE html>
         <html>
         <head>
-            <meta charset="utf-8">  # Especifica a codificação no HTML
+            <meta charset="utf-8">
             <title>OpenShift Tool Interface</title>
             <style>
                 body {{

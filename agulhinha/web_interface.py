@@ -18,6 +18,8 @@ class WebInterface(BaseHTTPRequestHandler):
                 self.show_main_page(session)
         elif self.path == '/logout':
             self.handle_logout()
+        elif self.path.startswith('/download-file'):
+            self.serve_file()
         else:
             # Se a rota não for reconhecida, redireciona para a página principal
             self.send_response(302)
@@ -118,6 +120,10 @@ class WebInterface(BaseHTTPRequestHandler):
                     document.getElementById('loading-overlay').style.display = 'flex';
                 }}
 
+                function hideLoadingOverlay() {{
+                    document.getElementById('loading-overlay').style.display = 'none';
+                }}
+
                 function validateForm(event) {{
                     const form = event.target;
                     const inputs = form.querySelectorAll('input[required]');
@@ -141,6 +147,13 @@ class WebInterface(BaseHTTPRequestHandler):
                 window.onload = function() {{
                     const form = document.querySelector('form');
                     form.addEventListener('submit', validateForm);
+
+                    const iframe = document.getElementById('invisible_iframe');
+                    if (iframe) {{
+                        iframe.onload = function() {{
+                            hideLoadingOverlay();
+                        }};
+                    }}
                 }};
             </script>
         </head>
@@ -148,7 +161,7 @@ class WebInterface(BaseHTTPRequestHandler):
             <div class="login-container">
                 <h2>Login</h2>
                 {f"<p class='error-message'>{error_message}</p>" if error_message else ""}
-                <form method="POST" action="/login">
+                <form method="POST" action="/login" target="invisible_iframe">
                     <label for="username">Username:</label><br>
                     <input type="text" id="username" name="username" required><br><br>
                     <label for="password">Senha:</label><br>
@@ -161,6 +174,8 @@ class WebInterface(BaseHTTPRequestHandler):
                 <div class="spinner"></div>
                 <p>Processando sua solicitação...</p>
             </div>
+            <!-- Iframe oculto -->
+            <iframe id="invisible_iframe" name="invisible_iframe" style="display:none;"></iframe>
         </body>
         </html>
         '''
@@ -320,6 +335,10 @@ class WebInterface(BaseHTTPRequestHandler):
                     document.getElementById('loading-overlay').style.display = 'flex';
                 }}
 
+                function hideLoadingOverlay() {{
+                    document.getElementById('loading-overlay').style.display = 'none';
+                }}
+
                 function validateForm(event) {{
                     const form = event.target;
                     const inputs = form.querySelectorAll('input[required]');
@@ -345,6 +364,12 @@ class WebInterface(BaseHTTPRequestHandler):
                     forms.forEach(form => {{
                         form.addEventListener('submit', validateForm);
                     }});
+
+                    const iframe = document.getElementById('invisible_iframe');
+                    iframe.onload = function() {{
+                        // Oculta o overlay de carregamento
+                        hideLoadingOverlay();
+                    }};
                 }};
             </script>
         </head>
@@ -355,7 +380,7 @@ class WebInterface(BaseHTTPRequestHandler):
                 </div>
                 <h2>Bem-vindo, {username}</h2>
                 
-                <form method="POST" action="/execute-script">
+                <form method="POST" action="/execute-script" target="invisible_iframe">
                     <h3>Executar OpenShift Tool</h3>
                     <label for="clusters">Clusters (separados por vírgulas):</label>
                     <input type="text" id="clusters" name="clusters" required>
@@ -369,7 +394,7 @@ class WebInterface(BaseHTTPRequestHandler):
                     <input type="submit" value="Executar">
                 </form>
 
-                <form method="POST" action="/test-connectivity">
+                <form method="POST" action="/test-connectivity" target="invisible_iframe">
                     <h3>Testar conectividade no pod</h3>
                     <label for="cluster">Cluster:</label>
                     <input type="text" id="cluster" name="cluster" required>
@@ -386,7 +411,7 @@ class WebInterface(BaseHTTPRequestHandler):
                     <input type="submit" value="Testar Conectividade">
                 </form>
 
-                <form method="POST" action="/collect-logs">
+                <form method="POST" action="/collect-logs" target="invisible_iframe">
                     <h3>Coletar logs do workload</h3>
                     <label for="cluster">Cluster:</label>
                     <input type="text" id="cluster" name="cluster" required>
@@ -405,6 +430,8 @@ class WebInterface(BaseHTTPRequestHandler):
                 <div class="spinner"></div>
                 <p>Processando sua solicitação...</p>
             </div>
+            <!-- Iframe oculto -->
+            <iframe id="invisible_iframe" name="invisible_iframe" style="display:none;"></iframe>
         </body>
         </html>
         '''
@@ -479,8 +506,8 @@ class WebInterface(BaseHTTPRequestHandler):
             if os.path.exists(csv_file):
                 # Envia o arquivo CSV para download
                 self.send_response(200)
-                self.send_header('Content-Type', 'text/csv')
-                self.send_header('Content-Disposition', 'attachment; filename="pods_status.csv"')
+                self.send_header('Content-Type', 'application/octet-stream')
+                self.send_header('Content-Disposition', f'attachment; filename="{csv_file}"')
                 self.end_headers()
 
                 # Lê e envia o conteúdo do arquivo CSV
@@ -502,46 +529,31 @@ class WebInterface(BaseHTTPRequestHandler):
             mensagem = f"<h2>Erro ao executar o script:</h2><p>{str(e)}</p>"
             self.wfile.write(mensagem.encode('utf-8'))
 
-    # Função para testar conectividade em um pod
-    def test_connectivity(self, session):
-        username = session['username']
-        password = session['password']
-        content_length = int(self.headers['Content-Length'])
-        post_data = self.rfile.read(content_length)
-        params = urllib.parse.parse_qs(post_data.decode('utf-8'))
-
-        cluster = params.get('cluster', [''])[0]
-        namespace = params.get('namespace', [''])[0]
-        pod_name = params.get('pod_name', [''])[0]
-        url = params.get('url', [''])[0]
-
-        # Verifica se todos os campos foram preenchidos
-        if not all([cluster, namespace, pod_name, url]):
-            self.send_response(400)
-            self.send_header('Content-type', 'text/html; charset=utf-8')
+    # Função para servir arquivos para download
+    def serve_file(self):
+        session = self.get_session()
+        if session is None:
+            self.send_response(302)
+            self.send_header('Location', '/')
             self.end_headers()
-            mensagem = "Todos os campos são obrigatórios!"
-            self.wfile.write(mensagem.encode('utf-8'))
             return
 
-        try:
-            # Conecta ao cluster antes de realizar o teste
-            login_to_cluster(cluster, username, password)
+        query = urllib.parse.urlparse(self.path).query
+        params = urllib.parse.parse_qs(query)
+        filename = params.get('filename', [''])[0]
 
-            # Executa o teste de conectividade no pod
-            result = test_connectivity_in_pod(cluster, namespace, pod_name, url)
-
-            # Exibe o resultado na página
+        if filename and os.path.exists(filename):
             self.send_response(200)
+            self.send_header('Content-Type', 'application/octet-stream')
+            self.send_header('Content-Disposition', f'attachment; filename="{filename}"')
+            self.end_headers()
+            with open(filename, 'rb') as f:
+                self.wfile.write(f.read())
+        else:
+            self.send_response(404)
             self.send_header('Content-type', 'text/html; charset=utf-8')
             self.end_headers()
-            mensagem = f"<h2>Resultado do Teste de Conectividade:</h2><pre>{result}</pre>"
-            self.wfile.write(mensagem.encode('utf-8'))
-        except Exception as e:
-            self.send_response(500)
-            self.send_header('Content-type', 'text/html; charset=utf-8')
-            self.end_headers()
-            mensagem = f"<h2>Erro ao testar conectividade:</h2><p>{str(e)}</p>"
+            mensagem = "<h2>Arquivo não encontrado.</h2>"
             self.wfile.write(mensagem.encode('utf-8'))
 
     # Função para coletar logs dos pods de um workload e compactá-los

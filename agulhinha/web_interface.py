@@ -12,59 +12,165 @@ class WebInterface(BaseHTTPRequestHandler):
         self.send_header('Content-type', 'text/html')
         self.end_headers()
         html = '''
+        <!DOCTYPE html>
         <html>
+        <head>
+            <title>OpenShift Tool Interface</title>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    background-color: #f2f2f2;
+                    margin: 0;
+                    padding: 0;
+                }
+                .container {
+                    width: 80%;
+                    margin: auto;
+                    overflow: hidden;
+                    padding: 20px;
+                }
+                h2 {
+                    color: #333;
+                    border-bottom: 2px solid #333;
+                    padding-bottom: 10px;
+                }
+                form {
+                    background: #fff;
+                    padding: 20px;
+                    margin-bottom: 20px;
+                    border-radius: 5px;
+                }
+                label {
+                    display: block;
+                    margin-top: 10px;
+                    font-weight: bold;
+                }
+                input[type="text"],
+                input[type="password"] {
+                    width: 100%;
+                    padding: 8px;
+                    margin-top: 5px;
+                    border: 1px solid #ccc;
+                    border-radius: 4px;
+                    box-sizing: border-box;
+                }
+                input[type="submit"] {
+                    margin-top: 20px;
+                    padding: 10px 15px;
+                    background-color: #28a745;
+                    color: #fff;
+                    border: none;
+                    border-radius: 4px;
+                    cursor: pointer;
+                }
+                input[type="submit"]:hover {
+                    background-color: #218838;
+                }
+                /* Estilo para mensagens de erro */
+                .error {
+                    color: red;
+                    margin-top: 10px;
+                }
+            </style>
+            <script>
+                // Função para validar os formulários
+                function validateForm(event) {
+                    const form = event.target;
+                    const inputs = form.querySelectorAll('input[required]');
+                    let valid = true;
+                    inputs.forEach(input => {
+                        if (input.value.trim() === '') {
+                            valid = false;
+                            input.style.borderColor = 'red';
+                        } else {
+                            input.style.borderColor = '#ccc';
+                        }
+                    });
+                    if (!valid) {
+                        event.preventDefault();
+                        alert('Por favor, preencha todos os campos obrigatórios.');
+                    }
+                }
+                // Adicionar evento de validação aos formulários ao carregar a página
+                window.onload = function() {
+                    const forms = document.querySelectorAll('form');
+                    forms.forEach(form => {
+                        form.addEventListener('submit', validateForm);
+                    });
+                };
+            </script>
+        </head>
         <body>
-            <h2>Executar OpenShift Tool</h2>
-            <form method="POST" action="/execute-script">
-                <label for="clusters">Clusters (separados por vírgulas):</label><br>
-                <input type="text" id="clusters" name="clusters"><br><br>
-                <label for="namespaces">Namespaces (separados por ponto e vírgula):</label><br>
-                <input type="text" id="namespaces" name="namespaces"><br><br>
-                <label for="patterns">Padrões de Pods (separados por ponto e vírgula):</label><br>
-                <input type="text" id="patterns" name="patterns"><br><br>
-                <label for="username">Username:</label><br>
-                <input type="text" id="username" name="username"><br><br>
-                <label for="password">Password:</label><br>
-                <input type="password" id="password" name="password"><br><br>
-                <input type="submit" value="Executar">
-            </form>
-
-            <h2>Testar conectividade no pod</h2>
-            <form method="POST" action="/test-connectivity">
-                <label for="cluster">Cluster:</label><br>
-                <input type="text" id="cluster" name="cluster"><br><br>
-                <label for="namespace">Namespace:</label><br>
-                <input type="text" id="namespace" name="namespace"><br><br>
-                <label for="pod_name">Nome do Pod:</label><br>
-                <input type="text" id="pod_name" name="pod_name"><br><br>
-                <label for="url">URL para testar:</label><br>
-                <input type="text" id="url" name="url" value="http://www.google.com"><br><br>
-                <label for="username">Username:</label><br>
-                <input type="text" id="username" name="username"><br><br>
-                <label for="password">Password:</label><br>
-                <input type="password" id="password" name="password"><br><br>
-                <input type="submit" value="Testar Conectividade">
-            </form>
-
-            <h2>Coletar logs do workload</h2>
-            <form method="POST" action="/collect-logs">
-                <label for="cluster">Cluster:</label><br>
-                <input type="text" id="cluster" name="cluster"><br><br>
-                <label for="namespace">Namespace:</label><br>
-                <input type="text" id="namespace" name="namespace"><br><br>
-                <label for="pattern">Padrão de Pods (Workload):</label><br>
-                <input type="text" id="pattern" name="pattern"><br><br>
-                <label for="username">Username:</label><br>
-                <input type="text" id="username" name="username"><br><br>
-                <label for="password">Password:</label><br>
-                <input type="password" id="password" name="password"><br><br>
-                <input type="submit" value="Coletar Logs">
-            </form>
+            <div class="container">
+                <h2>Executar OpenShift Tool</h2>
+                <form method="POST" action="/execute-script">
+                    <label for="clusters">Clusters (separados por vírgulas):</label>
+                    <input type="text" id="clusters" name="clusters" required>
+    
+                    <label for="namespaces">Namespaces (separados por ponto e vírgula):</label>
+                    <input type="text" id="namespaces" name="namespaces" required>
+    
+                    <label for="patterns">Padrões de Pods (separados por ponto e vírgula):</label>
+                    <input type="text" id="patterns" name="patterns" required>
+    
+                    <label for="username">Username:</label>
+                    <input type="text" id="username" name="username" required>
+    
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" name="password" required>
+    
+                    <input type="submit" value="Executar">
+                </form>
+    
+                <h2>Testar conectividade no pod</h2>
+                <form method="POST" action="/test-connectivity">
+                    <label for="cluster">Cluster:</label>
+                    <input type="text" id="cluster" name="cluster" required>
+    
+                    <label for="namespace">Namespace:</label>
+                    <input type="text" id="namespace" name="namespace" required>
+    
+                    <label for="pod_name">Nome do Pod:</label>
+                    <input type="text" id="pod_name" name="pod_name" required>
+    
+                    <label for="url">URL para testar:</label>
+                    <input type="text" id="url" name="url" value="http://www.google.com" required>
+    
+                    <label for="username">Username:</label>
+                    <input type="text" id="username" name="username" required>
+    
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" name="password" required>
+    
+                    <input type="submit" value="Testar Conectividade">
+                </form>
+    
+                <h2>Coletar logs do workload</h2>
+                <form method="POST" action="/collect-logs">
+                    <label for="cluster">Cluster:</label>
+                    <input type="text" id="cluster" name="cluster" required>
+    
+                    <label for="namespace">Namespace:</label>
+                    <input type="text" id="namespace" name="namespace" required>
+    
+                    <label for="pattern">Padrão de Pods (Workload):</label>
+                    <input type="text" id="pattern" name="pattern" required>
+    
+                    <label for="username">Username:</label>
+                    <input type="text" id="username" name="username" required>
+    
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" name="password" required>
+    
+                    <input type="submit" value="Coletar Logs">
+                </form>
+            </div>
         </body>
         </html>
         '''
         self.wfile.write(bytes(html, "utf8"))
         return
+
 
     # Redireciona as requisições POST de acordo com o que foi enviado no formulário
     def do_POST(self):

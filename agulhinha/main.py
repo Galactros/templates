@@ -9,24 +9,13 @@ from report_utils import append_final_report_to_csv
 from cluster_utils import login_to_cluster
 from command_utils import run_command
 
-def main():
-    parser = argparse.ArgumentParser(description="Script para coletar informações de pods e nodes em clusters OpenShift.")
-    parser.add_argument("-c", "--clusters", required=True, help="Lista de nomes dos clusters, separados por vírgulas (ex: cluster1,cluster2)")
-    parser.add_argument("-n", "--namespaces", required=True, help="Lista de namespaces, separados por ponto e vírgula (um conjunto por cluster)")
-    parser.add_argument("-p", "--patterns", required=True, help="Lista de padrões de nomes de pods, separados por ponto e vírgula (um conjunto por cluster)")
-    parser.add_argument("-u", "--username", required=True, help="Username para login em todos os clusters")
-    parser.add_argument("-pw", "--password", required=True, help="Senha para login em todos os clusters")
-    args = parser.parse_args()
-
-    clusters = args.clusters.split(',')
-    namespaces = args.namespaces.split(';')
-    patterns = args.patterns.split(';')
-    username = args.username
-    password = args.password
+def generate_pods_report(clusters_arg, namespaces_arg, patterns_arg, username, password):
+    clusters = clusters_arg.split(',')
+    namespaces = namespaces_arg.split(';')
+    patterns = patterns_arg.split(';')
 
     if len(clusters) != len(namespaces) or len(namespaces) != len(patterns):
-        print("Erro: O número de clusters, namespaces e padrões de pods deve ser igual.")
-        exit(1)
+        raise ValueError("Erro: O número de clusters, namespaces e padrões de pods deve ser igual.")
 
     csv_file = "pods_status.csv"
     final_report_file_name = "final_report.tmp"
@@ -34,14 +23,14 @@ def main():
     with open(csv_file, mode="w", newline='') as csv_f, open(final_report_file_name, mode="w") as final_report_f:
         csv_writer = csv.writer(csv_f, delimiter=';')
         csv_writer.writerow(["Cluster", "Namespace", "Pod Name", "Status", "Creation Time", "Recent Change", "Error Count",
-                             "CPU Usage", "Memory Usage", "CPU Request", "Memory Request", "CPU Limit", "Memory Limit","Tag",
-                             "CPU Usage vs Limit", "Memory Usage vs Limit", "HPA Enabled", "HPA Min Replicas", 
+                             "CPU Usage", "Memory Usage", "CPU Request", "Memory Request", "CPU Limit", "Memory Limit", "Tag",
+                             "CPU Usage vs Limit", "Memory Usage vs Limit", "HPA Enabled", "HPA Min Replicas",
                              "HPA Max Replicas", "HPA Current Replicas", "HPA CPU Target", "HPA CPU Current", "Restart Count"])
 
         for i, cluster_name in enumerate(clusters):
             # Login no cluster com o mesmo username e password para todos os clusters
             login_to_cluster(cluster_name, username, password)
-            
+
             ns_list = namespaces[i].split(',')
             pattern_list = patterns[i].split(',')
             for j, ns in enumerate(ns_list):
@@ -52,6 +41,7 @@ def main():
     append_final_report_to_csv(csv_file, final_report_file_name)
 
     print(f"Relatório final gerado no CSV: {csv_file}")
+    return csv_file
 
 def test_connectivity_in_pod(cluster, namespace, pod_name, url):
     """
@@ -80,7 +70,7 @@ def collect_logs_from_pods(cluster, namespace, pattern, username, password):
     log_dir = f"{cluster}_{namespace}_logs"
     os.makedirs(log_dir, exist_ok=True)
 
-    # Obtem a lista de pods no namespace que correspondem ao padrão do workload
+    # Obtém a lista de pods no namespace que correspondem ao padrão do workload
     pod_list = run_command(f"oc get pods -n {namespace} -o json")
     pod_list_json = json.loads(pod_list)
 
@@ -108,4 +98,13 @@ def collect_logs_from_pods(cluster, namespace, pattern, username, password):
     return tar_file_path
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Script para coletar informações de pods e nodes em clusters OpenShift.")
+    parser.add_argument("-c", "--clusters", required=True, help="Lista de nomes dos clusters, separados por vírgulas (ex: cluster1,cluster2)")
+    parser.add_argument("-n", "--namespaces", required=True, help="Lista de namespaces, separados por ponto e vírgula (um conjunto por cluster)")
+    parser.add_argument("-p", "--patterns", required=True, help="Lista de padrões de nomes de pods, separados por ponto e vírgula (um conjunto por cluster)")
+    parser.add_argument("-u", "--username", required=True, help="Username para login em todos os clusters")
+    parser.add_argument("-pw", "--password", required=True, help="Senha para login em todos os clusters")
+    args = parser.parse_args()
+
+    # Chama a função com os argumentos fornecidos
+    generate_pods_report(args.clusters, args.namespaces, args.patterns, args.username, args.password)

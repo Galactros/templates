@@ -3,7 +3,7 @@ import uuid
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import urllib.parse
 import subprocess
-from main import test_connectivity_in_pod, login_to_cluster, collect_logs_from_pods
+from main import test_connectivity_in_pod, login_to_cluster, collect_logs_from_pods, generate_pods_report
 
 sessions = {}
 
@@ -329,11 +329,11 @@ class WebInterface(BaseHTTPRequestHandler):
         content_length = int(self.headers['Content-Length'])
         post_data = self.rfile.read(content_length)
         params = urllib.parse.parse_qs(post_data.decode('utf-8'))
-
+    
         clusters = params.get('clusters', [''])[0]
         namespaces = params.get('namespaces', [''])[0]
         patterns = params.get('patterns', [''])[0]
-
+    
         # Verifica se todos os campos foram preenchidos
         if not all([clusters, namespaces, patterns]):
             self.send_response(400)
@@ -342,57 +342,36 @@ class WebInterface(BaseHTTPRequestHandler):
             mensagem = "Todos os campos são obrigatórios!"
             self.wfile.write(mensagem.encode('utf-8'))
             return
-
-        # Monta o comando para chamar o main.py com os parâmetros
-        command = [
-            'python3', 'main.py',
-            '--clusters', clusters,
-            '--namespaces', namespaces,
-            '--patterns', patterns,
-            '--username', username,
-            '--password', password
-        ]
-
+    
         try:
-            # Executa o comando chamando o main.py
-            result = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            stdout, stderr = result.communicate()
-
-            # Verifica se houve erro
-            if result.returncode != 0:
-                self.send_response(500)
-                self.send_header('Content-type', 'text/html')
-                self.end_headers()
-                self.wfile.write(bytes(f"<h2>Erro ao executar o script:</h2><pre>{stderr.decode('utf-8')}</pre>", "utf8"))
-                return
-
-            # Nome do arquivo CSV gerado
-            csv_file = "pods_status.csv"
-
-            # Verifica se o arquivo foi gerado
+            # Chama a função generate_pods_report diretamente
+            csv_file = generate_pods_report(clusters, namespaces, patterns, username, password)
+    
+            # Verifica se o arquivo CSV foi gerado
             if os.path.exists(csv_file):
                 # Envia o arquivo CSV para download
                 self.send_response(200)
                 self.send_header('Content-Type', 'text/csv')
-                self.send_header('Content-Disposition', 'attachment; filename="pods_status.csv"')
+                self.send_header('Content-Disposition', f'attachment; filename="{os.path.basename(csv_file)}"')
                 self.end_headers()
-
+    
                 # Lê e envia o conteúdo do arquivo CSV
                 with open(csv_file, 'rb') as file:
                     self.wfile.write(file.read())
-
             else:
                 # Caso o arquivo CSV não tenha sido gerado
                 self.send_response(500)
-                self.send_header('Content-type', 'text/html')
+                self.send_header('Content-type', 'text/html; charset=utf-8')
                 self.end_headers()
-                self.wfile.write(b"<h2>Erro: Arquivo CSV nao foi gerado.</h2>")
-
+                mensagem = "<h2>Erro: Arquivo CSV não foi gerado.</h2>"
+                self.wfile.write(mensagem.encode('utf-8'))
+    
         except Exception as e:
             self.send_response(500)
-            self.send_header('Content-type', 'text/html')
+            self.send_header('Content-type', 'text/html; charset=utf-8')
             self.end_headers()
-            self.wfile.write(bytes(f"<h2>Erro ao executar o script:</h2><p>{str(e)}</p>", "utf8"))
+            mensagem = f"<h2>Erro ao executar o script:</h2><p>{str(e)}</p>"
+            self.wfile.write(mensagem.encode('utf-8'))
 
     # Função para testar conectividade em um pod
     def test_connectivity(self, session):

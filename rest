@@ -1,0 +1,4 @@
+AzureDiagnostics
+| where ResourceType == "APPLICATIONGATEWAYS" and OperationName == "ApplicationGatewayAccessLog"
+| project TimeGenerated, clientIp_s, requestUri_s, httpStatus_d, httpMethod_s, userAgent_s, transactionId_g, receivedBytes_d, sentBytes_d
+| order by TimeGenerated desc

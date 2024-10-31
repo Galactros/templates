@@ -2,3 +2,10 @@ AzureDiagnostics
 | where ResourceType == "APPLICATIONGATEWAYS" and OperationName == "ApplicationGatewayAccessLog"
 | project TimeGenerated, clientIp_s, requestUri_s, httpStatus_d, httpMethod_s, userAgent_s, transactionId_g, receivedBytes_d, sentBytes_d
 | order by TimeGenerated desc
+
+
+oc get pods --all-namespaces --field-selector spec.nodeName=worker-node-1 \
+-o jsonpath='{range .items[*]}{.metadata.namespace}{" "}{.metadata.name}{"\n"}{end}' | \
+while read namespace pod; do
+    oc adm top pod $pod -n $namespace
+done

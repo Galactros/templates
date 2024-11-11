@@ -13,48 +13,54 @@
 <div class="container">
     <h1 class="mt-5 text-center">Incidente ou Informativo</h1>
     <form id="incidenteForm">
-        <!-- Tipo de Comunicado -->
-        <div class="form-group">
-            <label for="tipoComunicado" data-toggle="tooltip" data-placement="top" title="Selecione o tipo de comunicado (Incidente ou Informativo)">Tipo de Comunicado</label>
-            <select class="form-control" id="tipoComunicado" required>
-                <option value="" disabled selected>Selecione o tipo</option>
-                <option>Incidente P1</option>
-                <option>Incidente P2</option>
-                <option>Incidente P3</option>
-                <option>Informativo P3</option>
-                <option>Informativo P4</option>
-            </select>
-        </div>
-
-        <!-- Título do Incidente ou Informativo -->
+        <!-- Linha 1: Título do Incidente ou Informativo -->
         <div class="form-group">
             <label for="titulo" data-toggle="tooltip" data-placement="top" title="Digite um título descritivo do incidente ou informativo">Título do Incidente ou Informativo</label>
             <input type="text" class="form-control" id="titulo" placeholder="Digite o título" required>
         </div>
 
-        <!-- Status -->
-        <div class="form-group">
-            <label for="status" data-toggle="tooltip" data-placement="top" title="Selecione o status atual do incidente">Status</label>
-            <select class="form-control" id="status" required>
-                <option value="" disabled selected>Selecione o status</option>
-                <option>Em Andamento</option>
-                <option>Encerrado</option>
-            </select>
+        <!-- Linha 2: Tipo de Comunicado e Status -->
+        <div class="form-row">
+            <div class="form-group col-md-6">
+                <label for="tipoComunicado" data-toggle="tooltip" data-placement="top" title="Selecione o tipo de comunicado (Incidente ou Informativo)">Tipo de Comunicado</label>
+                <select class="form-control" id="tipoComunicado" required>
+                    <option value="" disabled selected>Selecione o tipo</option>
+                    <option>Incidente P1</option>
+                    <option>Incidente P2</option>
+                    <option>Incidente P3</option>
+                    <option>Informativo P3</option>
+                    <option>Informativo P4</option>
+                </select>
+            </div>
+            <div class="form-group col-md-6">
+                <label for="status" data-toggle="tooltip" data-placement="top" title="Selecione o status atual do incidente">Status</label>
+                <select class="form-control" id="status" required>
+                    <option value="" disabled selected>Selecione o status</option>
+                    <option>Em Andamento</option>
+                    <option>Encerrado</option>
+                </select>
+            </div>
         </div>
 
-        <!-- Líder da Sala -->
-        <div class="form-group">
-            <label for="lider" data-toggle="tooltip" data-placement="top" title="Nome(s) do(s) líder(es) responsável(eis) pela sala de solução">Líder da Sala</label>
-            <input type="text" class="form-control" id="lider" placeholder="Nomes dos líderes da sala" required>
+        <!-- Linha 3: Líder da Sala e Registro de Incidente -->
+        <div class="form-row">
+            <div class="form-group col-md-6">
+                <label for="lider" data-toggle="tooltip" data-placement="top" title="Nome(s) do(s) líder(es) responsável(eis) pela sala de solução">Líder da Sala</label>
+                <input type="text" class="form-control" id="lider" placeholder="Nomes dos líderes da sala" required>
+            </div>
+            <div class="form-group col-md-6">
+                <label for="registro" data-toggle="tooltip" data-placement="top" title="Informe o número do incidente registrado (se aplicável)">Registro de Incidente</label>
+                <input type="text" class="form-control" id="registro" placeholder="Número do Incidente Registrado">
+            </div>
         </div>
 
-        <!-- Ocorrência -->
+        <!-- Linha 4: Ocorrência -->
         <div class="form-group">
             <label for="ocorrencia" data-toggle="tooltip" data-placement="top" title="Descreva detalhadamente o que ocorreu">Ocorrência</label>
             <textarea class="form-control" id="ocorrencia" rows="3" placeholder="Descrição da ocorrência" required></textarea>
         </div>
 
-        <!-- Horário de Início e Fim -->
+        <!-- Linha 5: Horário de Início e Fim -->
         <div class="form-row">
             <div class="form-group col-md-6">
                 <label for="inicio" data-toggle="tooltip" data-placement="top" title="Horário em que o incidente começou">Horário de Início</label>
@@ -66,47 +72,65 @@
             </div>
         </div>
 
-        <!-- Canais Envolvidos -->
-        <div class="form-group">
-            <label for="canais" data-toggle="tooltip" data-placement="top" title="Informe quais canais estão envolvidos no incidente">Canais Envolvidos</label>
-            <input type="text" class="form-control" id="canais" placeholder="Colocar os canais envolvidos ou 'Em análise'" required>
+        <!-- Linha 6: Canais Envolvidos e Natureza do Incidente -->
+        <div class="form-row">
+            <div class="form-group col-md-6">
+                <label for="canais" data-toggle="tooltip" data-placement="top" title="Informe quais canais estão envolvidos no incidente">Canais Envolvidos</label>
+                <input type="text" class="form-control" id="canais" placeholder="Colocar os canais envolvidos ou 'Em análise'" required>
+            </div>
+            <div class="form-group col-md-6">
+                <label for="natureza" data-toggle="tooltip" data-placement="top" title="Selecione a natureza do incidente">Natureza do Incidente</label>
+                <select class="form-control" id="natureza" required>
+                    <option value="" disabled selected>Selecione a natureza</option>
+                    <option>Aplicativo</option>
+                    <option>Área de Negócio</option>
+                    <option>Regra de Negócio</option>
+                    <option>Erro Operacional</option>
+                    <option>Erro de Processo</option>
+                    <option>Improcedente</option>
+                    <option>Indeterminado</option>
+                    <option>Infraestrutura</option>
+                    <option>Mudança de Aplicativo</option>
+                    <option>Mudança de Infraestrutura</option>
+                    <option>Mudança de Negócio</option>
+                    <option>Problema Externo</option>
+                    <option>Vandalismo</option>
+                    <option>Em análise</option>
+                </select>
+            </div>
         </div>
 
-        <!-- Impacto -->
-        <div class="form-group">
-            <label for="impacto" data-toggle="tooltip" data-placement="top" title="Descreva o impacto causado pelo incidente (se conhecido)">Impacto</label>
-            <textarea class="form-control" id="impacto" rows="3" placeholder="Descrição do impacto"></textarea>
+        <!-- Linha 7: Impacto e Causa Raiz -->
+        <div class="form-row">
+            <div class="form-group col-md-6">
+                <label for="impacto" data-toggle="tooltip" data-placement="top" title="Descreva o impacto causado pelo incidente (se conhecido)">Impacto</label>
+                <textarea class="form-control" id="impacto" rows="3" placeholder="Descrição do impacto"></textarea>
+            </div>
+            <div class="form-group col-md-6">
+                <label for="causa" data-toggle="tooltip" data-placement="top" title="Descreva a causa raiz identificada ou indique se está em análise">Causa Raiz</label>
+                <textarea class="form-control" id="causa" rows="3" placeholder="Descrição da causa raiz ou 'Em análise'"></textarea>
+            </div>
         </div>
 
-        <!-- Causa Raiz -->
-        <div class="form-group">
-            <label for="causa" data-toggle="tooltip" data-placement="top" title="Descreva a causa raiz identificada ou indique se está em análise">Causa Raiz</label>
-            <textarea class="form-control" id="causa" rows="3" placeholder="Descrição da causa raiz ou 'Em análise'"></textarea>
+        <!-- Linha 8: Mudanças Relacionadas e Envolvidos -->
+        <div class="form-row">
+            <div class="form-group col-md-6">
+                <label for="mudancas" data-toggle="tooltip" data-placement="top" title="Informe se há mudanças relacionadas ao incidente">Mudanças Relacionadas</label>
+                <input type="text" class="form-control" id="mudancas" placeholder="Mudanças relacionadas ou 'Em análise'">
+            </div>
+            <div class="form-group col-md-6">
+                <label for="envolvidos" data-toggle="tooltip" data-placement="top" title="Liste as áreas e fornecedores envolvidos na solução do incidente">Envolvidos</label>
+                <input type="text" class="form-control" id="envolvidos" placeholder="Áreas atuando, Fornecedores">
+            </div>
         </div>
 
-        <!-- Natureza do Incidente -->
+        <!-- Linha 9: Sala de Solução -->
         <div class="form-group">
-            <label for="natureza" data-toggle="tooltip" data-placement="top" title="Selecione a natureza do incidente">Natureza do Incidente</label>
-            <select class="form-control" id="natureza" required>
-                <option value="" disabled selected>Selecione a natureza</option>
-                <option>Aplicativo</option>
-                <option>Área de Negócio</option>
-                <option>Regra de Negócio</option>
-                <option>Erro Operacional</option>
-                <option>Erro de Processo</option>
-                <option>Improcedente</option>
-                <option>Indeterminado</option>
-                <option>Infraestrutura</option>
-                <option>Mudança de Aplicativo</option>
-                <option>Mudança de Infraestrutura</option>
-                <option>Mudança de Negócio</option>
-                <option>Problema Externo</option>
-                <option>Vandalismo</option>
-                <option>Em análise</option>
-            </select>
+            <label for="sala" data-toggle="tooltip" data-placement="top" title="Insira o link da sala de solução (se disponível)">Sala de Solução</label>
+            <input type="url" class="form-control" id="sala" placeholder="Link da sala de solução">
         </div>
 
-        <!-- Ações -->
+        <!-- Linha 10: Ações -->
         <div class="form-group">
             <label data-toggle="tooltip" data-placement="top" title="Liste as ações realizadas durante o incidente">Ações</label>
             <div id="acoes">
@@ -115,36 +139,14 @@
             <button type="button" class="btn btn-secondary" id="addAcao">Adicionar Ação</button>
         </div>
 
-        <!-- Registro de Incidente -->
-        <div class="form-group">
-            <label for="registro" data-toggle="tooltip" data-placement="top" title="Informe o número do incidente registrado (se aplicável)">Registro de Incidente</label>
-            <input type="text" class="form-control" id="registro" placeholder="Número do Incidente Registrado">
-        </div>
-
-        <!-- Mudanças Relacionadas -->
-        <div class="form-group">
-            <label for="mudancas" data-toggle="tooltip" data-placement="top" title="Informe se há mudanças relacionadas ao incidente">Mudanças Relacionadas</label>
-            <input type="text" class="form-control" id="mudancas" placeholder="Mudanças relacionadas ou 'Em análise'">
-        </div>
-
-        <!-- Envolvidos -->
-        <div class="form-group">
-            <label for="envolvidos" data-toggle="tooltip" data-placement="top" title="Liste as áreas e fornecedores envolvidos na solução do incidente">Envolvidos</label>
-            <input type="text" class="form-control" id="envolvidos" placeholder="Áreas atuando, Fornecedores">
-        </div>
-
-        <!-- Sala de Solução -->
-        <div class="form-group">
-            <label for="sala" data-toggle="tooltip" data-placement="top" title="Insira o link da sala de solução (se disponível)">Sala de Solução</label>
-            <input type="url" class="form-control" id="sala" placeholder="Link da sala de solução">
-        </div>
-
         <!-- Botão de Submissão -->
         <button type="submit" class="btn btn-primary">Gerar Informativo</button>
     </form>
 
     <!-- Área para exibir o informativo gerado -->
-    <div id="resultado" class="mt-5"></div>
+    <div id="resultado" class="mt-5">
+        <!-- O informativo formatado será inserido aqui -->
+    </div>
 </div>
 
 <!-- Scripts necessários -->

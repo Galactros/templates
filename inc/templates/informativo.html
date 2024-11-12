@@ -1,0 +1,40 @@
+<!-- templates/informativo.html -->
+{% extends "base.html" %}
+
+{% block title %}Informativo Gerado{% endblock %}
+
+{% block content %}
+<div class="mt-5">
+    {{ informativo_html | safe }}
+</div>
+
+<button id="copyButton" class="btn btn-secondary mt-3">Copiar Informativo</button>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const textoInformativoPlain = `{{ informativo_plain | replace('\n', '\\n') }}`;
+
+    document.getElementById('copyButton').addEventListener('click', function() {
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(textoInformativoPlain).then(function() {
+                alert('Informativo copiado para a área de transferência!');
+            }, function(err) {
+                console.error('Erro ao copiar texto: ', err);
+            });
+        } else {
+            var textarea = document.createElement('textarea');
+            textarea.textContent = textoInformativoPlain;
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                alert('Informativo copiado para a área de transferência!');
+            } catch (err) {
+                console.error('Erro ao copiar texto: ', err);
+            }
+            document.body.removeChild(textarea);
+        }
+    });
+</script>
+{% endblock %}

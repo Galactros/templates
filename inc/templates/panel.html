@@ -1,0 +1,18 @@
+<!-- templates/panel.html -->
+{% extends "base.html" %}
+
+{% block title %}Painel JSON{% endblock %}
+
+{% block content %}
+    <h1 class="mt-5 text-center">Painel JSON</h1>
+    {% if error %}
+        <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
+    <form id="jsonForm" method="post" action="/update_form">
+        <div class="form-group">
+            <label for="jsonInput">Definição em JSON do Formulário</label>
+            <textarea class="form-control" id="jsonInput" name="json_input" rows="10" placeholder='{"campo1": "valor1", "campo2": "valor2"}'>{{ request.cookies.get('form_data', '') }}</textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Atualizar Formulário</button>
+    </form>
+{% endblock %}

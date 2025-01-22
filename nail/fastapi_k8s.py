@@ -130,3 +130,31 @@ def get_workload_pods(environment: str, cluster: str, namespace: str, workload_n
         return pod_details
     except Exception as e:
         return {"error": f"Erro ao buscar informações dos pods do workload '{workload_name}' no namespace '{namespace}': {str(e)}"}
+
+@app.get("/hpa/", response_model=List[Dict[str, str]])
+def list_hpa(environment: str, cluster: str, namespace: str, deployment_name: str):
+    """Lista os HPA de um deployment específico."""
+    kubeconfig_path = os.path.join(base_kubeconfig_folder, environment, cluster, "kubeconfig")
+    if not os.path.exists(kubeconfig_path):
+        return {"error": f"Kubeconfig não encontrado para o cluster '{cluster}' no ambiente '{environment}'."}
+
+    try:
+        config.load_kube_config(config_file=kubeconfig_path)
+        k8s_client = client.AutoscalingV1Api()
+
+        hpas = k8s_client.list_namespaced_horizontal_pod_autoscaler(namespace=namespace)
+        hpa_details = []
+
+        for hpa in hpas.items:
+            if hpa.spec.scale_target_ref.name == deployment_name:
+                hpa_details.append({
+                    "name": hpa.metadata.name,
+                    "min_replicas": str(hpa.spec.min_replicas),
+                    "max_replicas": str(hpa.spec.max_replicas),
+                    "current_replicas": str(hpa.status.current_replicas),
+                    "target_cpu_utilization_percentage": str(hpa.spec.target_cpu_utilization_percentage) if hpa.spec.target_cpu_utilization_percentage else "N/A"
+                })
+
+        return hpa_details
+    except Exception as e:
+        return {"error": f"Erro ao listar os HPAs do deployment '{deployment_name}' no namespace '{namespace}': {str(e)}"}

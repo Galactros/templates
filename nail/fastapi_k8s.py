@@ -78,6 +78,8 @@ def get_workload_pods(environment: str, cluster: str, namespace: str, workload_n
             pod_name = pod.metadata.name
             pod_status = pod.status.phase
             creation_time = pod.metadata.creation_timestamp
+            restarts = sum(container.restart_count for container in pod.status.container_statuses or [])
+            tag = pod.metadata.labels.get("tag", "N/A")
 
             # Initialize values for requests and limits
             cpu_request, memory_request, cpu_limit, memory_limit = "0", "0", "0", "0"
@@ -116,6 +118,8 @@ def get_workload_pods(environment: str, cluster: str, namespace: str, workload_n
                 "memory_request": memory_request,
                 "cpu_limit": cpu_limit,
                 "memory_limit": memory_limit,
+                "restarts": str(restarts),
+                "tag": tag
             })
 
         return pod_details

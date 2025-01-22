@@ -1,5 +1,4 @@
 from fastapi import FastAPI, Query
-from fastapi.openapi.utils import get_openapi
 from kubernetes import client, config
 from typing import List, Dict
 
@@ -33,12 +32,11 @@ def health_check():
 
 @app.get("/cluster-resources/", response_model=Dict[str, Dict[str, str]])
 def cluster_resources():
-    """Retorna as informações de CPU e memória utilizadas e totais do cluster."""
+    """Retorna as informações de utilização de CPU e memória dos clusters."""
     if not k8s_client:
         return {"error": "Erro ao conectar-se ao Kubernetes API. Verifique o kubeconfig."}
 
     try:
-        metrics_client = client.CustomObjectsApi()
         nodes = k8s_client.list_node()
 
         cluster_data = {}
@@ -48,28 +46,24 @@ def cluster_resources():
             allocatable = node.status.allocatable
             capacity = node.status.capacity
 
+            # Calcula a utilização de CPU e memória
+            cpu_allocatable = int(allocatable["cpu"].strip("m")) / 1000
+            cpu_capacity = int(capacity["cpu"].strip("m")) / 1000
+            memory_allocatable = int(allocatable["memory"].strip("Ki")) / 1024 / 1024
+            memory_capacity = int(capacity["memory"].strip("Ki")) / 1024 / 1024
+
+            cpu_usage_percentage = (cpu_allocatable / cpu_capacity) * 100
+            memory_usage_percentage = (memory_allocatable / memory_capacity) * 100
+
             cluster_data[node_name] = {
-                "cpu_allocatable": allocatable["cpu"],
-                "cpu_capacity": capacity["cpu"],
-                "memory_allocatable": allocatable["memory"],
-                "memory_capacity": capacity["memory"],
+                "cpu_usage_percentage": f"{cpu_usage_percentage:.2f}%",
+                "memory_usage_percentage": f"{memory_usage_percentage:.2f}%",
+                "cpu_allocatable": f"{cpu_allocatable:.2f} cores",
+                "cpu_capacity": f"{cpu_capacity:.2f} cores",
+                "memory_allocatable": f"{memory_allocatable:.2f} GiB",
+                "memory_capacity": f"{memory_capacity:.2f} GiB",
             }
 
         return cluster_data
     except Exception as e:
         return {"error": f"Erro ao obter recursos do cluster: {str(e)}"}
-
-# Configuração do Swagger personalizado
-@app.get("/openapi.json")
-def custom_openapi():
-    """Gera o esquema OpenAPI para o Swagger."""
-    if app.openapi_schema:
-        return app.openapi_schema
-    openapi_schema = get_openapi(
-        title="API Kubernetes",
-        version="1.0.0",
-        description="API para interagir com o Kubernetes utilizando kubeconfig",
-        routes=app.routes,
-    )
-    app.openapi_schema = openapi_schema
-    return app.openapi_schema

@@ -31,7 +31,12 @@ function fetchWorkloadPods() {
     $.get(`/workload-pods/?environment=${selectedEnvironment}&cluster=${cluster}&namespace=${namespace}&workload_name=${workload}`)
         .done((data) => {
             let resultHtml = '<table class="table table-bordered">';
-            resultHtml += '<thead><tr><th>Pod Name</th><th>Status</th><th>Creation Time</th><th>Tag</th><th>Restarts</th></tr></thead><tbody>';
+            resultHtml += '<thead><tr>' +
+                '<th>Pod Name</th><th>Status</th><th>Creation Time</th>' +
+                '<th>Tag</th><th>Restarts</th><th>CPU Usage</th>' +
+                '<th>Memory Usage</th><th>CPU Request</th><th>Memory Request</th>' +
+                '<th>CPU Limit</th><th>Memory Limit</th>' +
+                '</tr></thead><tbody>';
             data.forEach(pod => {
                 resultHtml += `<tr>
                     <td>${pod.pod_name}</td>
@@ -39,6 +44,12 @@ function fetchWorkloadPods() {
                     <td>${pod.creation_time}</td>
                     <td>${pod.tag}</td>
                     <td>${pod.restarts}</td>
+                    <td>${pod.cpu_usage}</td>
+                    <td>${pod.memory_usage}</td>
+                    <td>${pod.cpu_request}</td>
+                    <td>${pod.memory_request}</td>
+                    <td>${pod.cpu_limit}</td>
+                    <td>${pod.memory_limit}</td>
                 </tr>`;
             });
             resultHtml += '</tbody></table>';
@@ -51,6 +62,7 @@ function fetchWorkloadPods() {
             hideLoadingSpinner();
         });
 }
+
 
 function fetchHPA() {
     if (!selectedEnvironment) {

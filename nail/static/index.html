@@ -52,22 +52,26 @@
         <div id="workload-form" class="form-section">
             <h3>Workload Pods</h3>
             <form id="workload-pods-form" class="mb-4">
-                <div class="mb-3">
-                    <label for="cluster" class="form-label">Cluster</label>
-                    <input type="text" class="form-control" id="cluster" placeholder="e.g., cluster1">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label for="cluster" class="form-label">Cluster</label>
+                        <input type="text" class="form-control" id="cluster" placeholder="e.g., cluster1">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="namespace" class="form-label">Namespace</label>
+                        <input type="text" class="form-control" id="namespace" placeholder="e.g., default">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="workload" class="form-label">Workload Name</label>
+                        <input type="text" class="form-control" id="workload" placeholder="e.g., my-workload">
+                    </div>
                 </div>
-                <div class="mb-3">
-                    <label for="namespace" class="form-label">Namespace</label>
-                    <input type="text" class="form-control" id="namespace" placeholder="e.g., default">
+                <div class="mt-3 text-end">
+                    <button type="button" class="btn btn-primary" onclick="fetchWorkloadPods()">Get Pods</button>
                 </div>
-                <div class="mb-3">
-                    <label for="workload" class="form-label">Workload Name</label>
-                    <input type="text" class="form-control" id="workload" placeholder="e.g., my-workload">
-                </div>
-                <button type="button" class="btn btn-primary" onclick="fetchWorkloadPods()">Get Pods</button>
             </form>
             <div id="workload-pods-result" class="mt-3"></div>
-        </div>
+        </div>        
 
         <div id="hpa-form" class="form-section d-none">
             <h3>HPA</h3>

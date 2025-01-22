@@ -79,7 +79,12 @@ def get_workload_pods(environment: str, cluster: str, namespace: str, workload_n
             pod_status = pod.status.phase
             creation_time = pod.metadata.creation_timestamp
             restarts = sum(container.restart_count for container in pod.status.container_statuses or [])
-            tag = pod.metadata.labels.get("tag", "N/A")
+            
+            # Extract tag (version of the image) from the container image
+            tag = "N/A"
+            if pod.spec.containers:
+                container_image = pod.spec.containers[0].image
+                tag = container_image.split(":")[-1] if ":" in container_image else "latest"
 
             # Initialize values for requests and limits
             cpu_request, memory_request, cpu_limit, memory_limit = "0", "0", "0", "0"

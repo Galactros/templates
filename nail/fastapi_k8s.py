@@ -1,29 +1,28 @@
 from fastapi import FastAPI, Query
 from kubernetes import client, config
 from typing import List, Dict
+import os
 
 app = FastAPI()
 
-# Carrega o kubeconfig no início da aplicação
-try:
-    config.load_kube_config(config_file="/path/to/kubeconfig")
-    k8s_client = client.CoreV1Api()
-except Exception as e:
-    k8s_client = None
-    print(f"Erro ao carregar o kubeconfig: {e}")
+# Base folder for cluster kubeconfig directories
+base_kubeconfig_folder = "/arquvi/kube/clusters/"  # Substitua pelo caminho base
 
 @app.get("/pods/", response_model=List[str])
-def list_pods(namespace: str = Query(default="default", description="Namespace a ser consultado")):
-    """Lista os pods em um namespace especificado."""
-    if not k8s_client:
-        return {"error": "Erro ao conectar-se ao Kubernetes API. Verifique o kubeconfig."}
+def list_pods(environment: str, cluster: str, namespace: str = Query(default="default", description="Namespace a ser consultado")):
+    """Lista os pods em um namespace especificado em um cluster."""
+    kubeconfig_path = os.path.join(base_kubeconfig_folder, environment, cluster, "kubeconfig")
+    if not os.path.exists(kubeconfig_path):
+        return {"error": f"Kubeconfig não encontrado para o cluster '{cluster}' no ambiente '{environment}'."}
 
     try:
+        config.load_kube_config(config_file=kubeconfig_path)
+        k8s_client = client.CoreV1Api()
         pods = k8s_client.list_namespaced_pod(namespace=namespace)
         pod_names = [pod.metadata.name for pod in pods.items]
         return pod_names
-    except client.exceptions.ApiException as e:
-        return {"error": f"Erro ao listar pods no namespace '{namespace}': {e.reason}"}
+    except Exception as e:
+        return {"error": f"Erro ao listar pods no cluster '{cluster}' e namespace '{namespace}': {str(e)}"}
 
 @app.get("/health")
 def health_check():
@@ -31,12 +30,15 @@ def health_check():
     return {"status": "ok"}
 
 @app.get("/cluster-resources/", response_model=Dict[str, Dict[str, str]])
-def cluster_resources():
+def cluster_resources(environment: str, cluster: str):
     """Retorna as informações de utilização de CPU e memória dos clusters."""
-    if not k8s_client:
-        return {"error": "Erro ao conectar-se ao Kubernetes API. Verifique o kubeconfig."}
+    kubeconfig_path = os.path.join(base_kubeconfig_folder, environment, cluster, "kubeconfig")
+    if not os.path.exists(kubeconfig_path):
+        return {"error": f"Kubeconfig não encontrado para o cluster '{cluster}' no ambiente '{environment}'."}
 
     try:
+        config.load_kube_config(config_file=kubeconfig_path)
+        k8s_client = client.CoreV1Api()
         nodes = k8s_client.list_node()
 
         cluster_data = {}
@@ -55,4 +57,4 @@ def cluster_resources():
 
         return cluster_data
     except Exception as e:
-        return {"error": f"Erro ao obter recursos do cluster: {str(e)}"}
+        return {"error": f"Erro ao obter recursos do cluster '{cluster}' no ambiente '{environment}': {str(e)}"}

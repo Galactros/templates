@@ -1,10 +1,34 @@
+let selectedEnvironment = '';
+
+function setEnvironment(env) {
+    selectedEnvironment = env;
+    $('#environmentDropdown').text(`Environment: ${env}`);
+}
+
+function showForm(formId) {
+    $('.form-section').addClass('d-none');
+    $(`#${formId}-form`).removeClass('d-none');
+}
+
+function showLoadingSpinner() {
+    $('#loading-spinner').removeClass('d-none');
+}
+
+function hideLoadingSpinner() {
+    $('#loading-spinner').addClass('d-none');
+}
+
 function fetchWorkloadPods() {
-    const environment = $("#environment").val();
+    if (!selectedEnvironment) {
+        alert('Please select an environment.');
+        return;
+    }
     const cluster = $("#cluster").val();
     const namespace = $("#namespace").val();
     const workload = $("#workload").val();
 
-    $.get(`/workload-pods/?environment=${environment}&cluster=${cluster}&namespace=${namespace}&workload_name=${workload}`)
+    showLoadingSpinner();
+    $.get(`/workload-pods/?environment=${selectedEnvironment}&cluster=${cluster}&namespace=${namespace}&workload_name=${workload}`)
         .done((data) => {
             let resultHtml = '<table class="table table-bordered">';
             resultHtml += '<thead><tr><th>Pod Name</th><th>Status</th><th>Creation Time</th><th>Tag</th><th>Restarts</th></tr></thead><tbody>';
@@ -22,16 +46,23 @@ function fetchWorkloadPods() {
         })
         .fail((err) => {
             $("#workload-pods-result").html(`<div class="alert alert-danger">${err.responseJSON.error}</div>`);
+        })
+        .always(() => {
+            hideLoadingSpinner();
         });
 }
 
 function fetchHPA() {
-    const environment = $("#hpa-environment").val();
+    if (!selectedEnvironment) {
+        alert('Please select an environment.');
+        return;
+    }
     const cluster = $("#hpa-cluster").val();
     const namespace = $("#hpa-namespace").val();
     const deployment = $("#hpa-deployment").val();
 
-    $.get(`/hpa/?environment=${environment}&cluster=${cluster}&namespace=${namespace}&deployment_name=${deployment}`)
+    showLoadingSpinner();
+    $.get(`/hpa/?environment=${selectedEnvironment}&cluster=${cluster}&namespace=${namespace}&deployment_name=${deployment}`)
         .done((data) => {
             let resultHtml = '<table class="table table-bordered">';
             resultHtml += '<thead><tr><th>HPA Name</th><th>Min Replicas</th><th>Max Replicas</th><th>Current Replicas</th><th>Target CPU Utilization</th></tr></thead><tbody>';
@@ -49,5 +80,8 @@ function fetchHPA() {
         })
         .fail((err) => {
             $("#hpa-result").html(`<div class="alert alert-danger">${err.responseJSON.error}</div>`);
+        })
+        .always(() => {
+            hideLoadingSpinner();
         });
 }

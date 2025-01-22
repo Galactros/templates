@@ -1,4 +1,6 @@
 from fastapi import FastAPI, Query
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from kubernetes import client, config
 from typing import List, Dict
 import os
@@ -7,6 +9,15 @@ app = FastAPI()
 
 # Base folder for cluster kubeconfig directories
 base_kubeconfig_folder = "/arquvi/kube/clusters/"  # Substitua pelo caminho base
+
+# Mount static files for HTML, CSS, and JS
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get("/", response_class=HTMLResponse)
+def index():
+    """Serve the main HTML interface."""
+    with open("static/index.html", "r") as file:
+        return file.read()
 
 @app.get("/pods/", response_model=List[str])
 def list_pods(environment: str, cluster: str, namespace: str = Query(default="default", description="Namespace a ser consultado")):

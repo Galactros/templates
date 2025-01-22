@@ -46,22 +46,11 @@ def cluster_resources():
             allocatable = node.status.allocatable
             capacity = node.status.capacity
 
-            # Calcula a utilização de CPU e memória
-            cpu_allocatable = int(allocatable["cpu"].strip("m")) / 1000
-            cpu_capacity = int(capacity["cpu"].strip("m")) / 1000
-            memory_allocatable = int(allocatable["memory"].strip("Ki")) / 1024 / 1024
-            memory_capacity = int(capacity["memory"].strip("Ki")) / 1024 / 1024
-
-            cpu_usage_percentage = (cpu_allocatable / cpu_capacity) * 100
-            memory_usage_percentage = (memory_allocatable / memory_capacity) * 100
-
             cluster_data[node_name] = {
-                "cpu_usage_percentage": f"{cpu_usage_percentage:.2f}%",
-                "memory_usage_percentage": f"{memory_usage_percentage:.2f}%",
-                "cpu_allocatable": f"{cpu_allocatable:.2f} cores",
-                "cpu_capacity": f"{cpu_capacity:.2f} cores",
-                "memory_allocatable": f"{memory_allocatable:.2f} GiB",
-                "memory_capacity": f"{memory_capacity:.2f} GiB",
+                "cpu_allocatable": allocatable["cpu"],
+                "cpu_capacity": capacity["cpu"],
+                "memory_allocatable": allocatable["memory"],
+                "memory_capacity": capacity["memory"],
             }
 
         return cluster_data

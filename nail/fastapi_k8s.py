@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Query
 from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from kubernetes import client, config
 from typing import List, Dict
@@ -169,3 +170,27 @@ def list_hpa(environment: str, cluster: str, namespace: str, deployment_name: st
         return hpa_details
     except Exception as e:
         return {"error": f"Erro ao listar os HPAs do deployment '{deployment_name}' no namespace '{namespace}': {str(e)}"}
+
+@app.get("/pod-logs/", response_class=FileResponse)
+def download_pod_logs(environment: str, cluster: str, namespace: str, pod_name: str):
+    """Download logs for a specific pod."""
+    kubeconfig_path = os.path.join(base_kubeconfig_folder, environment, cluster, "kubeconfig")
+    if not os.path.exists(kubeconfig_path):
+        return {"error": f"Kubeconfig não encontrado para o cluster '{cluster}' no ambiente '{environment}'."}
+
+    try:
+        # Carrega o kubeconfig para o cluster
+        config.load_kube_config(config_file=kubeconfig_path)
+        k8s_client = client.CoreV1Api()
+
+        # Obtém os logs do pod
+        logs = k8s_client.read_namespaced_pod_log(name=pod_name, namespace=namespace)
+
+        # Salva os logs em um arquivo temporário
+        log_file_path = f"/tmp/{pod_name}_logs.txt"
+        with open(log_file_path, "w") as log_file:
+            log_file.write(logs)
+
+        return log_file_path
+    except Exception as e:
+        return {"error": f"Erro ao baixar logs do pod '{pod_name}' no namespace '{namespace}': {str(e)}"}

@@ -35,6 +35,7 @@ function fetchWorkloadPods() {
                 '<th>Pod Name</th><th>Status</th><th>Creation Time</th>' +
                 '<th>Tag</th><th>Restarts</th><th>CPU Usage</th>' +
                 '<th>Memory Usage</th><th>CPU Limit</th><th>Memory Limit</th>' +
+                '<th>Actions</th>' +
                 '</tr></thead><tbody>';
             data.forEach(pod => {
                 resultHtml += `<tr>
@@ -47,6 +48,7 @@ function fetchWorkloadPods() {
                     <td>${pod.memory_usage}</td>
                     <td>${pod.cpu_limit}</td>
                     <td>${pod.memory_limit}</td>
+                    <td><button class="btn btn-sm btn-secondary" onclick="downloadPodLogs('${pod.pod_name}')">Download Logs</button></td>
                 </tr>`;
             });
             resultHtml += '</tbody></table>';
@@ -59,6 +61,19 @@ function fetchWorkloadPods() {
             hideLoadingSpinner();
         });
 }
+
+function downloadPodLogs(podName) {
+    if (!selectedEnvironment) {
+        alert('Please select an environment.');
+        return;
+    }
+    const cluster = $("#cluster").val();
+    const namespace = $("#namespace").val();
+
+    const url = `/pod-logs/?environment=${selectedEnvironment}&cluster=${cluster}&namespace=${namespace}&pod_name=${podName}`;
+    window.open(url, '_blank');
+}
+
 
 function fetchHPA() {
     if (!selectedEnvironment) {

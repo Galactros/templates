@@ -171,12 +171,14 @@ def list_hpa(environment: str, cluster: str, namespace: str, deployment_name: st
     except Exception as e:
         return {"error": f"Erro ao listar os HPAs do deployment '{deployment_name}' no namespace '{namespace}': {str(e)}"}
 
+from fastapi.responses import JSONResponse
+
 @app.get("/pod-logs/", response_class=FileResponse)
 def download_pod_logs(environment: str, cluster: str, namespace: str, pod_name: str):
     """Download logs for a specific pod."""
     kubeconfig_path = os.path.join(base_kubeconfig_folder, environment, cluster, "kubeconfig")
     if not os.path.exists(kubeconfig_path):
-        return {"error": f"Kubeconfig não encontrado para o cluster '{cluster}' no ambiente '{environment}'."}
+        return JSONResponse(status_code=404, content={"error": f"Kubeconfig não encontrado para o cluster '{cluster}' no ambiente '{environment}'."})
 
     try:
         # Carrega o kubeconfig para o cluster
@@ -191,6 +193,9 @@ def download_pod_logs(environment: str, cluster: str, namespace: str, pod_name: 
         with open(log_file_path, "w") as log_file:
             log_file.write(logs)
 
-        return log_file_path
+        # Retorna o arquivo como resposta
+        return FileResponse(log_file_path, media_type="text/plain", filename=f"{pod_name}_logs.txt")
+    except client.exceptions.ApiException as e:
+        return JSONResponse(status_code=e.status, content={"error": f"Erro ao obter logs do pod '{pod_name}': {e.reason}"})
     except Exception as e:
-        return {"error": f"Erro ao baixar logs do pod '{pod_name}' no namespace '{namespace}': {str(e)}"}
+        return JSONResponse(status_code=500, content={"error": f"Erro interno: {str(e)}"})

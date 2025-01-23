@@ -71,8 +71,32 @@ function downloadPodLogs(podName) {
     const namespace = $("#namespace").val();
 
     const url = `/pod-logs/?environment=${selectedEnvironment}&cluster=${cluster}&namespace=${namespace}&pod_name=${podName}`;
-    window.open(url, '_blank');
+
+    showLoadingSpinner();
+
+    fetch(url)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Failed to fetch logs for pod: ${podName}`);
+            }
+            return response.blob();
+        })
+        .then(blob => {
+            // Cria um link para baixar o arquivo
+            const link = document.createElement('a');
+            link.href = window.URL.createObjectURL(blob);
+            link.download = `${podName}_logs.txt`;
+            link.click();
+            link.remove();
+        })
+        .catch(error => {
+            alert(`Error downloading logs for pod: ${podName}\n${error.message}`);
+        })
+        .finally(() => {
+            hideLoadingSpinner();
+        });
 }
+
 
 
 function fetchHPA() {

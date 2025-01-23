@@ -97,8 +97,6 @@ function downloadPodLogs(podName) {
         });
 }
 
-
-
 function fetchHPA() {
     if (!selectedEnvironment) {
         alert('Please select an environment.');
@@ -127,6 +125,41 @@ function fetchHPA() {
         })
         .fail((err) => {
             $("#hpa-result").html(`<div class="alert alert-danger">${err.responseJSON.error}</div>`);
+        })
+        .always(() => {
+            hideLoadingSpinner();
+        });
+}
+
+function fetchPodEvents() {
+    if (!selectedEnvironment) {
+        alert('Please select an environment.');
+        return;
+    }
+    const cluster = $("#events-cluster").val();
+    const namespace = $("#events-namespace").val();
+    const workload = $("#events-workload").val();
+
+    showLoadingSpinner();
+
+    $.get(`/pod-events/?environment=${selectedEnvironment}&cluster=${cluster}&namespace=${namespace}&workload_name=${workload}`)
+        .done((data) => {
+            let resultHtml = '<table class="table table-bordered">';
+            resultHtml += '<thead><tr><th>Pod Name</th><th>Event Type</th><th>Reason</th><th>Message</th><th>Timestamp</th></tr></thead><tbody>';
+            data.forEach(event => {
+                resultHtml += `<tr>
+                    <td>${event.pod_name}</td>
+                    <td>${event.event_type}</td>
+                    <td>${event.reason}</td>
+                    <td>${event.message}</td>
+                    <td>${event.timestamp}</td>
+                </tr>`;
+            });
+            resultHtml += '</tbody></table>';
+            $("#events-pods-result").html(resultHtml);
+        })
+        .fail((err) => {
+            $("#events-pods-result").html(`<div class="alert alert-danger">${err.responseJSON.error}</div>`);
         })
         .always(() => {
             hideLoadingSpinner();

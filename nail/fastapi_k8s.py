@@ -217,3 +217,39 @@ def delete_file(file_path: str):
             print(f"Arquivo {file_path} removido com sucesso.")
     except Exception as e:
         print(f"Erro ao remover o arquivo {file_path}: {e}")
+
+@app.get("/pod-events/", response_model=List[Dict[str, str]])
+def get_pod_events(environment: str, cluster: str, namespace: str, workload_name: str):
+    """Retorna eventos dos pods de um workload específico."""
+    kubeconfig_path = os.path.join(base_kubeconfig_folder, environment, cluster, "kubeconfig")
+    if not os.path.exists(kubeconfig_path):
+        return JSONResponse(status_code=404, content={"error": f"Kubeconfig não encontrado para o cluster '{cluster}' no ambiente '{environment}'."})
+
+    try:
+        # Carrega o kubeconfig para o cluster
+        config.load_kube_config(config_file=kubeconfig_path)
+        k8s_client = client.CoreV1Api()
+
+        # Lista os pods associados ao workload
+        pods = k8s_client.list_namespaced_pod(namespace=namespace, label_selector=f"app={workload_name}")
+
+        # Coleta eventos associados a cada pod
+        events_data = []
+        for pod in pods.items:
+            pod_name = pod.metadata.name
+            events = k8s_client.list_namespaced_event(namespace=namespace, field_selector=f"involvedObject.name={pod_name}")
+
+            for event in events.items:
+                events_data.append({
+                    "pod_name": pod_name,
+                    "event_type": event.type,
+                    "reason": event.reason,
+                    "message": event.message,
+                    "timestamp": str(event.last_timestamp or event.first_timestamp),
+                })
+
+        return events_data
+    except client.exceptions.ApiException as e:
+        return JSONResponse(status_code=e.status, content={"error": f"Erro ao obter eventos dos pods: {e.reason}"})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": f"Erro interno: {str(e)}"})

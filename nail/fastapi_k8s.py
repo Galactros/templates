@@ -253,3 +253,45 @@ def get_pod_events(environment: str, cluster: str, namespace: str, workload_name
         return JSONResponse(status_code=e.status, content={"error": f"Erro ao obter eventos dos pods: {e.reason}"})
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": f"Erro interno: {str(e)}"})
+
+@app.get("/pvc/", response_model=List[Dict[str, str]])
+def list_pvcs(environment: str, cluster: str, namespace: str):
+    """Retorna os PVCs em um namespace com informações detalhadas."""
+    kubeconfig_path = os.path.join(base_kubeconfig_folder, environment, cluster, "kubeconfig")
+    if not os.path.exists(kubeconfig_path):
+        return JSONResponse(status_code=404, content={"error": f"Kubeconfig não encontrado para o cluster '{cluster}' no ambiente '{environment}'."})
+
+    try:
+        # Carrega o kubeconfig para o cluster
+        config.load_kube_config(config_file=kubeconfig_path)
+        k8s_client = client.CoreV1Api()
+
+        # Lista os PVCs no namespace
+        pvcs = k8s_client.list_namespaced_persistent_volume_claim(namespace=namespace)
+        pvc_data = []
+
+        for pvc in pvcs.items:
+            # Nome do PVC e informações de capacidade
+            pvc_name = pvc.metadata.name
+            capacity = pvc.status.capacity.get("storage", "N/A")
+            access_modes = pvc.spec.access_modes
+
+            # Tamanho utilizado
+            storage_used = pvc.status.capacity.get("storage", "N/A")
+
+            # Obtém informações do workload associado
+            workload = pvc.metadata.annotations.get("workload", "Unknown")
+
+            pvc_data.append({
+                "name": pvc_name,
+                "capacity": capacity,
+                "used": storage_used,
+                "workload": workload,
+                "access_modes": ", ".join(access_modes),
+            })
+
+        return pvc_data
+    except client.exceptions.ApiException as e:
+        return JSONResponse(status_code=e.status, content={"error": f"Erro ao listar PVCs no namespace '{namespace}': {e.reason}"})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": f"Erro interno: {str(e)}"})

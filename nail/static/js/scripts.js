@@ -165,3 +165,40 @@ function fetchPodEvents() {
             hideLoadingSpinner();
         });
 }
+
+function fetchPVCs() {
+    if (!selectedEnvironment) {
+        alert('Please select an environment.');
+        return;
+    }
+    const cluster = $("#pvc-cluster").val();
+    const namespace = $("#pvc-namespace").val();
+
+    showLoadingSpinner();
+
+    $.get(`/pvc/?environment=${selectedEnvironment}&cluster=${cluster}&namespace=${namespace}`)
+        .done((data) => {
+            let resultHtml = '<table class="table table-bordered">';
+            resultHtml += '<thead><tr>' +
+                '<th>Name</th><th>Capacity</th><th>Used</th>' +
+                '<th>Workload</th><th>Access Modes</th>' +
+                '</tr></thead><tbody>';
+            data.forEach(pvc => {
+                resultHtml += `<tr>
+                    <td>${pvc.name}</td>
+                    <td>${pvc.capacity}</td>
+                    <td>${pvc.used}</td>
+                    <td>${pvc.workload}</td>
+                    <td>${pvc.access_modes}</td>
+                </tr>`;
+            });
+            resultHtml += '</tbody></table>';
+            $("#pvc-result").html(resultHtml);
+        })
+        .fail((err) => {
+            $("#pvc-result").html(`<div class="alert alert-danger">${err.responseJSON.error}</div>`);
+        })
+        .always(() => {
+            hideLoadingSpinner();
+        });
+}

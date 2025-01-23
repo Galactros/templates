@@ -35,6 +35,9 @@
                     <li class="nav-item">
                         <a class="nav-link" href="#" onclick="showForm('events')">Pod Events</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="showForm('pvc')">PVCs</a>
+                    </li>
                 </ul>
                 <div class="dropdown">
                     <button class="btn btn-secondary dropdown-toggle" type="button" id="environmentDropdown" data-bs-toggle="dropdown" aria-expanded="false">
@@ -123,6 +126,26 @@
                 </div>
             </form>
             <div id="events-pods-result" class="mt-3"></div>
+        </div>
+
+        <div id="pvc-form" class="form-section d-none">
+            <h3>Persistent Volume Claims (PVCs)</h3>
+            <form id="pvc-form" class="mb-4">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="pvc-cluster" class="form-label">Cluster</label>
+                        <input type="text" class="form-control" id="pvc-cluster" placeholder="e.g., cluster1">
+                    </div>
+                    <div class="col-md-6">
+                        <label for="pvc-namespace" class="form-label">Namespace</label>
+                        <input type="text" class="form-control" id="pvc-namespace" placeholder="e.g., default">
+                    </div>
+                </div>
+                <div class="mt-3 text-end">
+                    <button type="button" class="btn btn-primary" onclick="fetchPVCs()">Get PVCs</button>
+                </div>
+            </form>
+            <div id="pvc-result" class="mt-3"></div>
         </div>        
     </div>
 </body>

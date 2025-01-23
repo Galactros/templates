@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Query
 from fastapi.responses import HTMLResponse
-from fastapi.responses import FileResponse
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.background import BackgroundTasks
 from fastapi.staticfiles import StaticFiles
 from kubernetes import client, config
 from typing import List, Dict
@@ -172,10 +172,14 @@ def list_hpa(environment: str, cluster: str, namespace: str, deployment_name: st
     except Exception as e:
         return {"error": f"Erro ao listar os HPAs do deployment '{deployment_name}' no namespace '{namespace}': {str(e)}"}
 
-from fastapi.responses import JSONResponse
-
 @app.get("/pod-logs/", response_class=FileResponse)
-def download_pod_logs(environment: str, cluster: str, namespace: str, pod_name: str):
+def download_pod_logs(
+    environment: str,
+    cluster: str,
+    namespace: str,
+    pod_name: str,
+    background_tasks: BackgroundTasks
+):
     """Download logs for a specific pod."""
     kubeconfig_path = os.path.join(base_kubeconfig_folder, environment, cluster, "kubeconfig")
     if not os.path.exists(kubeconfig_path):
@@ -189,10 +193,13 @@ def download_pod_logs(environment: str, cluster: str, namespace: str, pod_name: 
         # Obtém os logs do pod
         logs = k8s_client.read_namespaced_pod_log(name=pod_name, namespace=namespace)
 
-        # Salva os logs em um arquivo temporário usando o codec 'utf-8' com erros ignorados
+        # Salva os logs em um arquivo temporário
         log_file_path = f"/tmp/{pod_name}_logs.txt"
         with open(log_file_path, "w", encoding="utf-8", errors="replace") as log_file:
             log_file.write(logs)
+
+        # Adiciona a tarefa em segundo plano para apagar o arquivo
+        background_tasks.add_task(delete_file, log_file_path)
 
         # Retorna o arquivo como resposta
         return FileResponse(log_file_path, media_type="text/plain", filename=f"{pod_name}_logs.txt")
@@ -200,3 +207,13 @@ def download_pod_logs(environment: str, cluster: str, namespace: str, pod_name: 
         return JSONResponse(status_code=e.status, content={"error": f"Erro ao obter logs do pod '{pod_name}': {e.reason}"})
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": f"Erro interno: {str(e)}"})
+
+
+def delete_file(file_path: str):
+    """Remove o arquivo temporário."""
+    try:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            print(f"Arquivo {file_path} removido com sucesso.")
+    except Exception as e:
+        print(f"Erro ao remover o arquivo {file_path}: {e}")

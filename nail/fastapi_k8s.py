@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Query
 from fastapi.responses import HTMLResponse
 from fastapi.responses import FileResponse
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from kubernetes import client, config
 from typing import List, Dict
@@ -188,9 +189,9 @@ def download_pod_logs(environment: str, cluster: str, namespace: str, pod_name: 
         # Obtém os logs do pod
         logs = k8s_client.read_namespaced_pod_log(name=pod_name, namespace=namespace)
 
-        # Salva os logs em um arquivo temporário
+        # Salva os logs em um arquivo temporário usando o codec 'utf-8' com erros ignorados
         log_file_path = f"/tmp/{pod_name}_logs.txt"
-        with open(log_file_path, "w") as log_file:
+        with open(log_file_path, "w", encoding="utf-8", errors="replace") as log_file:
             log_file.write(logs)
 
         # Retorna o arquivo como resposta

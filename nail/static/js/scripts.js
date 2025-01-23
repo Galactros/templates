@@ -34,8 +34,7 @@ function fetchWorkloadPods() {
             resultHtml += '<thead><tr>' +
                 '<th>Pod Name</th><th>Status</th><th>Creation Time</th>' +
                 '<th>Tag</th><th>Restarts</th><th>CPU Usage</th>' +
-                '<th>Memory Usage</th><th>CPU Request</th><th>Memory Request</th>' +
-                '<th>CPU Limit</th><th>Memory Limit</th>' +
+                '<th>Memory Usage</th><th>CPU Limit</th><th>Memory Limit</th>' +
                 '</tr></thead><tbody>';
             data.forEach(pod => {
                 resultHtml += `<tr>
@@ -46,8 +45,6 @@ function fetchWorkloadPods() {
                     <td>${pod.restarts}</td>
                     <td>${pod.cpu_usage}</td>
                     <td>${pod.memory_usage}</td>
-                    <td>${pod.cpu_request}</td>
-                    <td>${pod.memory_request}</td>
                     <td>${pod.cpu_limit}</td>
                     <td>${pod.memory_limit}</td>
                 </tr>`;
@@ -62,7 +59,6 @@ function fetchWorkloadPods() {
             hideLoadingSpinner();
         });
 }
-
 
 function fetchHPA() {
     if (!selectedEnvironment) {

@@ -76,22 +76,26 @@
         <div id="hpa-form" class="form-section d-none">
             <h3>HPA</h3>
             <form id="hpa-form" class="mb-4">
-                <div class="mb-3">
-                    <label for="hpa-cluster" class="form-label">Cluster</label>
-                    <input type="text" class="form-control" id="hpa-cluster" placeholder="e.g., cluster1">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label for="hpa-cluster" class="form-label">Cluster</label>
+                        <input type="text" class="form-control" id="hpa-cluster" placeholder="e.g., cluster1">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="hpa-namespace" class="form-label">Namespace</label>
+                        <input type="text" class="form-control" id="hpa-namespace" placeholder="e.g., default">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="hpa-deployment" class="form-label">Deployment Name</label>
+                        <input type="text" class="form-control" id="hpa-deployment" placeholder="e.g., my-deployment">
+                    </div>
                 </div>
-                <div class="mb-3">
-                    <label for="hpa-namespace" class="form-label">Namespace</label>
-                    <input type="text" class="form-control" id="hpa-namespace" placeholder="e.g., default">
+                <div class="mt-3 text-end">
+                    <button type="button" class="btn btn-primary" onclick="fetchHPA()">Get HPA</button>
                 </div>
-                <div class="mb-3">
-                    <label for="hpa-deployment" class="form-label">Deployment Name</label>
-                    <input type="text" class="form-control" id="hpa-deployment" placeholder="e.g., my-deployment">
-                </div>
-                <button type="button" class="btn btn-primary" onclick="fetchHPA()">Get HPA</button>
             </form>
             <div id="hpa-result" class="mt-3"></div>
-        </div>
+        </div>        
     </div>
 </body>
 </html>

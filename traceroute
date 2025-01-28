@@ -1,0 +1,30 @@
+from scapy.all import IP, ICMP, sr1, conf
+import sys
+
+def traceroute(target, max_hops=30, timeout=2):
+    print(f"Traceroute para {target} com no máximo {max_hops} saltos:\n")
+    for ttl in range(1, max_hops + 1):
+        # Cria um pacote IP com o TTL definido e uma solicitação ICMP
+        packet = IP(dst=target, ttl=ttl) / ICMP()
+        # Envia o pacote e aguarda por uma resposta
+        response = sr1(packet, verbose=0, timeout=timeout)
+
+        if response:
+            # Extrai o IP do roteador que respondeu
+            print(f"{ttl}\t{response.src}")
+            # Se chegou ao destino final, interrompe o loop
+            if response.src == target:
+                print("Rastreamento concluído.")
+                break
+        else:
+            print(f"{ttl}\t*")  # Sem resposta para esse TTL
+    else:
+        print("Rastreamento não foi concluído dentro do limite de saltos.")
+
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("Uso: python traceroute.py <destino>")
+        sys.exit(1)
+
+    target_host = sys.argv[1]
+    traceroute(target_host)

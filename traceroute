@@ -1,30 +1,60 @@
-from scapy.all import IP, ICMP, sr1, conf
-import sys
+from scapy.all import IP, ICMP, sr1
+import time
+from collections import defaultdict
 
-def traceroute(target, max_hops=30, timeout=2):
-    print(f"Traceroute para {target} com no máximo {max_hops} saltos:\n")
-    for ttl in range(1, max_hops + 1):
-        # Cria um pacote IP com o TTL definido e uma solicitação ICMP
-        packet = IP(dst=target, ttl=ttl) / ICMP()
-        # Envia o pacote e aguarda por uma resposta
-        response = sr1(packet, verbose=0, timeout=timeout)
+def mtr(target, max_hops=30, interval=1, iterations=5, timeout=2):
+    print(f"MTR para {target} com no máximo {max_hops} saltos e {iterations} iterações:\n")
+    stats = defaultdict(lambda: {"responses": 0, "latency": []})  # Armazena estatísticas por hop
 
-        if response:
-            # Extrai o IP do roteador que respondeu
-            print(f"{ttl}\t{response.src}")
-            # Se chegou ao destino final, interrompe o loop
-            if response.src == target:
-                print("Rastreamento concluído.")
-                break
-        else:
-            print(f"{ttl}\t*")  # Sem resposta para esse TTL
-    else:
-        print("Rastreamento não foi concluído dentro do limite de saltos.")
+    for i in range(iterations):
+        print(f"Iteração {i + 1}/{iterations}...")
+        for ttl in range(1, max_hops + 1):
+            # Cria o pacote IP com TTL ajustado e adiciona ICMP
+            packet = IP(dst=target, ttl=ttl) / ICMP()
+            
+            # Envia o pacote e mede o tempo de resposta
+            start_time = time.time()
+            response = sr1(packet, verbose=0, timeout=timeout)
+            elapsed_time = (time.time() - start_time) * 1000  # Latência em ms
+
+            if response:
+                # Atualiza as estatísticas do roteador
+                stats[response.src]["responses"] += 1
+                stats[response.src]["latency"].append(elapsed_time)
+
+                # Exibe o hop (primeira vez que o roteador é encontrado)
+                if len(stats[response.src]["latency"]) == 1:
+                    print(f"{ttl}\t{response.src}")
+                
+                # Para se o destino final for alcançado
+                if response.src == target:
+                    break
+            else:
+                # Adiciona um timeout para o TTL atual
+                stats[f"TTL {ttl}"]["latency"].append(None)  # Pacote perdido
+                if len(stats[f"TTL {ttl}"]["latency"]) == 1:
+                    print(f"{ttl}\t*")
+        time.sleep(interval)  # Espera antes da próxima iteração
+
+    # Exibe o relatório final
+    print("\nRelatório Final:\n")
+    print(f"{'Hop':<5}{'Endereço':<20}{'Latência Média (ms)':<20}{'Pacotes Perdidos':<15}")
+    for ttl, data in enumerate(stats, start=1):
+        address = data if "TTL" not in data else "*"
+        latencies = stats[data]["latency"]
+        avg_latency = (
+            sum(l for l in latencies if l is not None) / len([l for l in latencies if l is not None])
+            if latencies and any(l is not None for l in latencies)
+            else "-"
+        )
+        packet_loss = len([l for l in latencies if l is None])
+        print(f"{ttl:<5}{address:<20}{avg_latency:<20}{packet_loss:<15}")
 
 if __name__ == "__main__":
+    import sys
     if len(sys.argv) != 2:
-        print("Uso: python traceroute.py <destino>")
+        print("Uso: python mtr.py <destino>")
         sys.exit(1)
-
+    
     target_host = sys.argv[1]
-    traceroute(target_host)
+    mtr(target_host)

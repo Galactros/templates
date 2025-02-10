@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.background import BackgroundTasks
@@ -26,7 +26,7 @@ def list_pods(environment: str, cluster: str, namespace: str = Query(default="de
     """Lista os pods em um namespace especificado em um cluster."""
     kubeconfig_path = os.path.join(base_kubeconfig_folder, environment, cluster, "kubeconfig")
     if not os.path.exists(kubeconfig_path):
-        return {"error": f"Kubeconfig não encontrado para o cluster '{cluster}' no ambiente '{environment}'."}
+        raise HTTPException(status_code=404, detail=f"Kubeconfig não encontrado para o cluster '{cluster}' no ambiente '{environment}'.")
 
     try:
         config.load_kube_config(config_file=kubeconfig_path)
@@ -34,8 +34,10 @@ def list_pods(environment: str, cluster: str, namespace: str = Query(default="de
         pods = k8s_client.list_namespaced_pod(namespace=namespace)
         pod_names = [pod.metadata.name for pod in pods.items]
         return pod_names
+    except client.exceptions.ApiException as e:
+        raise HTTPException(status_code=e.status, detail=f"Erro ao listar pods no cluster '{cluster}' e namespace '{namespace}': {str(e)}")
     except Exception as e:
-        return {"error": f"Erro ao listar pods no cluster '{cluster}' e namespace '{namespace}': {str(e)}"}
+        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
 
 @app.get("/health")
 def health_check():
@@ -47,7 +49,7 @@ def cluster_resources(environment: str, cluster: str):
     """Retorna as informações de utilização de CPU e memória dos clusters."""
     kubeconfig_path = os.path.join(base_kubeconfig_folder, environment, cluster, "kubeconfig")
     if not os.path.exists(kubeconfig_path):
-        return {"error": f"Kubeconfig não encontrado para o cluster '{cluster}' no ambiente '{environment}'."}
+        raise HTTPException(status_code=404, detail=f"Kubeconfig não encontrado para o cluster '{cluster}' no ambiente '{environment}'.")
 
     try:
         config.load_kube_config(config_file=kubeconfig_path)
@@ -69,15 +71,17 @@ def cluster_resources(environment: str, cluster: str):
             }
 
         return cluster_data
+    except client.exceptions.ApiException as e:
+        raise HTTPException(status_code=e.status, detail=f"Erro ao obter recursos do cluster '{cluster}' no ambiente '{environment}': {str(e)}")
     except Exception as e:
-        return {"error": f"Erro ao obter recursos do cluster '{cluster}' no ambiente '{environment}': {str(e)}"}
+        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
 
 @app.get("/workload-pods/", response_model=List[Dict[str, str]])
 def get_workload_pods(environment: str, cluster: str, namespace: str, workload_name: str):
     """Busca os pods de um workload específico e retorna informações detalhadas."""
     kubeconfig_path = os.path.join(base_kubeconfig_folder, environment, cluster, "kubeconfig")
     if not os.path.exists(kubeconfig_path):
-        return {"error": f"Kubeconfig não encontrado para o cluster '{cluster}' no ambiente '{environment}'."}
+        raise HTTPException(status_code=404, detail=f"Kubeconfig não encontrado para o cluster '{cluster}' no ambiente '{environment}'.")
 
     try:
         config.load_kube_config(config_file=kubeconfig_path)
@@ -141,15 +145,17 @@ def get_workload_pods(environment: str, cluster: str, namespace: str, workload_n
             })
 
         return pod_details
+    except client.exceptions.ApiException as e:
+        raise HTTPException(status_code=e.status, detail=f"Erro ao buscar informações dos pods do workload '{workload_name}' no namespace '{namespace}': {str(e)}")
     except Exception as e:
-        return {"error": f"Erro ao buscar informações dos pods do workload '{workload_name}' no namespace '{namespace}': {str(e)}"}
+        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
 
 @app.get("/hpa/", response_model=List[Dict[str, str]])
 def list_hpa(environment: str, cluster: str, namespace: str, deployment_name: str):
     """Lista os HPA de um deployment específico."""
     kubeconfig_path = os.path.join(base_kubeconfig_folder, environment, cluster, "kubeconfig")
     if not os.path.exists(kubeconfig_path):
-        return {"error": f"Kubeconfig não encontrado para o cluster '{cluster}' no ambiente '{environment}'."}
+        raise HTTPException(status_code=404, detail=f"Kubeconfig não encontrado para o cluster '{cluster}' no ambiente '{environment}'.")
 
     try:
         config.load_kube_config(config_file=kubeconfig_path)
@@ -169,8 +175,10 @@ def list_hpa(environment: str, cluster: str, namespace: str, deployment_name: st
                 })
 
         return hpa_details
+    except client.exceptions.ApiException as e:
+        raise HTTPException(status_code=e.status, detail=f"Erro ao listar os HPAs do deployment '{deployment_name}' no namespace '{namespace}': {str(e)}")
     except Exception as e:
-        return {"error": f"Erro ao listar os HPAs do deployment '{deployment_name}' no namespace '{namespace}': {str(e)}"}
+        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
 
 @app.get("/pod-logs/", response_class=FileResponse)
 def download_pod_logs(
@@ -183,7 +191,7 @@ def download_pod_logs(
     """Download logs for a specific pod."""
     kubeconfig_path = os.path.join(base_kubeconfig_folder, environment, cluster, "kubeconfig")
     if not os.path.exists(kubeconfig_path):
-        return JSONResponse(status_code=404, content={"error": f"Kubeconfig não encontrado para o cluster '{cluster}' no ambiente '{environment}'."})
+        raise HTTPException(status_code=404, detail=f"Kubeconfig não encontrado para o cluster '{cluster}' no ambiente '{environment}'.")
 
     try:
         # Carrega o kubeconfig para o cluster
@@ -204,9 +212,9 @@ def download_pod_logs(
         # Retorna o arquivo como resposta
         return FileResponse(log_file_path, media_type="text/plain", filename=f"{pod_name}_logs.txt")
     except client.exceptions.ApiException as e:
-        return JSONResponse(status_code=e.status, content={"error": f"Erro ao obter logs do pod '{pod_name}': {e.reason}"})
+        raise HTTPException(status_code=e.status, detail=f"Erro ao obter logs do pod '{pod_name}': {e.reason}")
     except Exception as e:
-        return JSONResponse(status_code=500, content={"error": f"Erro interno: {str(e)}"})
+        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
 
 
 def delete_file(file_path: str):
@@ -223,7 +231,7 @@ def get_pod_events(environment: str, cluster: str, namespace: str, workload_name
     """Retorna eventos dos pods de um workload específico."""
     kubeconfig_path = os.path.join(base_kubeconfig_folder, environment, cluster, "kubeconfig")
     if not os.path.exists(kubeconfig_path):
-        return JSONResponse(status_code=404, content={"error": f"Kubeconfig não encontrado para o cluster '{cluster}' no ambiente '{environment}'."})
+        raise HTTPException(status_code=404, detail=f"Kubeconfig não encontrado para o cluster '{cluster}' no ambiente '{environment}'.")
 
     try:
         # Carrega o kubeconfig para o cluster
@@ -250,16 +258,16 @@ def get_pod_events(environment: str, cluster: str, namespace: str, workload_name
 
         return events_data
     except client.exceptions.ApiException as e:
-        return JSONResponse(status_code=e.status, content={"error": f"Erro ao obter eventos dos pods: {e.reason}"})
+        raise HTTPException(status_code=e.status, detail=f"Erro ao obter eventos dos pods: {e.reason}")
     except Exception as e:
-        return JSONResponse(status_code=500, content={"error": f"Erro interno: {str(e)}"})
+        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
 
 @app.get("/pvc/", response_model=List[Dict[str, str]])
 def list_pvcs(environment: str, cluster: str, namespace: str):
     """Retorna os PVCs em um namespace com informações detalhadas."""
     kubeconfig_path = os.path.join(base_kubeconfig_folder, environment, cluster, "kubeconfig")
     if not os.path.exists(kubeconfig_path):
-        return JSONResponse(status_code=404, content={"error": f"Kubeconfig não encontrado para o cluster '{cluster}' no ambiente '{environment}'."})
+        raise HTTPException(status_code=404, detail=f"Kubeconfig não encontrado para o cluster '{cluster}' no ambiente '{environment}'.")
 
     try:
         # Carrega o kubeconfig para o cluster
@@ -292,6 +300,6 @@ def list_pvcs(environment: str, cluster: str, namespace: str):
 
         return pvc_data
     except client.exceptions.ApiException as e:
-        return JSONResponse(status_code=e.status, content={"error": f"Erro ao listar PVCs no namespace '{namespace}': {e.reason}"})
+        raise HTTPException(status_code=e.status, detail=f"Erro ao listar PVCs no namespace '{namespace}': {e.reason}")
     except Exception as e:
-        return JSONResponse(status_code=500, content={"error": f"Erro interno: {str(e)}"})
+        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")

@@ -55,8 +55,7 @@ function fetchWorkloadPods() {
             $("#workload-pods-result").html(resultHtml);
         })
         .fail((err) => {
-            let errorMessage = err.responseJSON && err.responseJSON.error ? err.responseJSON.error : "Erro ao buscar os pods.";
-            $("#workload-pods-result").html(`<div class="alert alert-danger">${errorMessage}</div>`);
+            $("#workload-pods-result").html(`<div class="alert alert-danger">${err.responseJSON.error}</div>`);
         })
         .always(() => {
             hideLoadingSpinner();
@@ -125,8 +124,7 @@ function fetchHPA() {
             $("#hpa-result").html(resultHtml);
         })
         .fail((err) => {
-            let errorMessage = err.responseJSON && err.responseJSON.error ? err.responseJSON.error : "Erro ao buscar os Hpas.";
-            $("#hpa-result").html(`<div class="alert alert-danger">${errorMessage}</div>`);
+            $("#hpa-result").html(`<div class="alert alert-danger">${err.responseJSON.error}</div>`);
         })
         .always(() => {
             hideLoadingSpinner();
@@ -161,8 +159,7 @@ function fetchPodEvents() {
             $("#events-pods-result").html(resultHtml);
         })
         .fail((err) => {
-            let errorMessage = err.responseJSON && err.responseJSON.error ? err.responseJSON.error : "Erro ao buscar os Pods Events.";
-            $("#events-pods-result").html(`<div class="alert alert-danger">${errorMessage}</div>`);
+            $("#events-pods-result").html(`<div class="alert alert-danger">${err.responseJSON.error}</div>`);
         })
         .always(() => {
             hideLoadingSpinner();
@@ -199,8 +196,7 @@ function fetchPVCs() {
             $("#pvc-result").html(resultHtml);
         })
         .fail((err) => {
-            let errorMessage = err.responseJSON && err.responseJSON.error ? err.responseJSON.error : "Erro ao buscar PVCs.";
-            $("#pvc-result").html(`<div class="alert alert-danger">${errorMessage}</div>`);
+            $("#pvc-result").html(`<div class="alert alert-danger">${err.responseJSON.error}</div>`);
         })
         .always(() => {
             hideLoadingSpinner();

@@ -256,25 +256,33 @@ function testConnectivity() {
 
     showLoadingSpinner();
 
-    $.post(`/test-connectivity/`, {
-        environment: selectedEnvironment,
-        cluster: cluster,
-        namespace: namespace,
-        pod_name: podName,
-        url: url,
-        test_type: testType
-    })
-    .done((response) => {
-        $("#connectivity-output").val(response.output);
-    })
-    .fail((err) => {
-        let errorMessage = err.responseJSON && err.responseJSON.detail ? err.responseJSON.detail : "Erro ao executar o teste.";
-        $("#connectivity-output").val(errorMessage);
-    })
-    .always(() => {
-        hideLoadingSpinner();
+    $.ajax({
+        url: "/test-connectivity/",
+        type: "POST",
+        contentType: "application/json",  // <- Corrigido para JSON
+        data: JSON.stringify({
+            environment: selectedEnvironment,
+            cluster: cluster,
+            namespace: namespace,
+            pod_name: podName,
+            url: url,
+            test_type: testType
+        }),
+        success: function(response) {
+            $("#connectivity-output").val(response.output);
+        },
+        error: function(err) {
+            let errorMessage = err.responseJSON && err.responseJSON.detail
+                ? err.responseJSON.detail
+                : "Erro ao executar o teste.";
+            $("#connectivity-output").val(errorMessage);
+        },
+        complete: function() {
+            hideLoadingSpinner();
+        }
     });
 }
+
 
 function copyToClipboard() {
     const outputField = document.getElementById("connectivity-output");

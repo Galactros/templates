@@ -18,3 +18,14 @@ h1 {
     align-items: center;
     justify-content: center;
 }
+
+#login-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+}
+
+.hidden {
+    display: none !important;
+}

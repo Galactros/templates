@@ -299,3 +299,47 @@ function copyToClipboard() {
     document.execCommand("copy");
     alert("Resultado copiado para a área de transferência!");
 }
+
+$(document).ready(function () {
+    checkLogin();
+
+    $("#login-form").submit(function (event) {
+        event.preventDefault();
+        login();
+    });
+});
+
+function checkLogin() {
+    if (localStorage.getItem("isLoggedIn") === "true") {
+        $("#login-container").hide();
+        $("#app-container").show();
+    } else {
+        $("#login-container").show();
+        $("#app-container").hide();
+    }
+}
+
+function login() {
+    const username = $("#username").val();
+    const password = $("#password").val();
+
+    $.ajax({
+        url: "/login/",
+        type: "POST",
+        headers: {
+            "Authorization": "Basic " + btoa(username + ":" + password)
+        },
+        success: function () {
+            localStorage.setItem("isLoggedIn", "true");
+            checkLogin();
+        },
+        error: function () {
+            $("#login-error").show();
+        }
+    });
+}
+
+function logout() {
+    localStorage.removeItem("isLoggedIn");
+    checkLogin();
+}

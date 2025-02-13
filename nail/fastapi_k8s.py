@@ -3,6 +3,8 @@ from fastapi.responses import HTMLResponse
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.background import BackgroundTasks
 from fastapi.staticfiles import StaticFiles
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi import Depends
 from kubernetes import client, config
 from kubernetes.stream import stream
 from typing import List, Dict
@@ -16,11 +18,24 @@ base_kubeconfig_folder = "/arquvi/kube/clusters/"  # Substitua pelo caminho base
 # Mount static files for HTML, CSS, and JS
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+# Definição de usuário e senha hardcoded (substitua por um banco de dados no futuro)
+USERNAME = "admin"
+PASSWORD = "senha123"
+
+security = HTTPBasic()
+
 @app.get("/", response_class=HTMLResponse)
 def index():
     """Serve the main HTML interface."""
     with open("static/index.html", "r") as file:
         return file.read()
+
+@app.post("/login/")
+def login(credentials: HTTPBasicCredentials = Depends(security)):
+    """Autenticação básica do usuário"""
+    if credentials.username == USERNAME and credentials.password == PASSWORD:
+        return {"message": "Login bem-sucedido"}
+    raise HTTPException(status_code=401, detail="Credenciais inválidas")
 
 @app.get("/pods/", response_model=List[str])
 def list_pods(environment: str, cluster: str, namespace: str = Query(default="default", description="Namespace a ser consultado")):

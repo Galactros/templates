@@ -237,3 +237,48 @@ function deletePod(podName) {
         }
     });
 }
+
+function testConnectivity() {
+    if (!selectedEnvironment) {
+        alert('Por favor, selecione um ambiente.');
+        return;
+    }
+    const cluster = $("#connectivity-cluster").val();
+    const namespace = $("#connectivity-namespace").val();
+    const podName = $("#connectivity-pod").val();
+    const url = $("#connectivity-url").val();
+    const testType = $("#connectivity-test-type").val();
+
+    if (!podName || !url) {
+        alert("Por favor, preencha todos os campos.");
+        return;
+    }
+
+    showLoadingSpinner();
+
+    $.post(`/test-connectivity/`, {
+        environment: selectedEnvironment,
+        cluster: cluster,
+        namespace: namespace,
+        pod_name: podName,
+        url: url,
+        test_type: testType
+    })
+    .done((response) => {
+        $("#connectivity-output").val(response.output);
+    })
+    .fail((err) => {
+        let errorMessage = err.responseJSON && err.responseJSON.detail ? err.responseJSON.detail : "Erro ao executar o teste.";
+        $("#connectivity-output").val(errorMessage);
+    })
+    .always(() => {
+        hideLoadingSpinner();
+    });
+}
+
+function copyToClipboard() {
+    const outputField = document.getElementById("connectivity-output");
+    outputField.select();
+    document.execCommand("copy");
+    alert("Resultado copiado para a área de transferência!");
+}

@@ -5,6 +5,7 @@ from fastapi.background import BackgroundTasks
 from fastapi.staticfiles import StaticFiles
 from kubernetes import client, config
 from typing import List, Dict
+import subprocess
 import os
 
 app = FastAPI()
@@ -324,3 +325,35 @@ def delete_pod(environment: str, cluster: str, namespace: str, pod_name: str):
         raise HTTPException(status_code=e.status, detail=f"Erro ao deletar pod '{pod_name}': {e.reason}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
+
+@app.post("/test-connectivity/")
+def test_pod_connectivity(
+    environment: str, cluster: str, namespace: str, pod_name: str, url: str, test_type: str
+):
+    """Executa um teste de conectividade dentro do pod"""
+    kubeconfig_path = os.path.join(base_kubeconfig_folder, environment, cluster, "kubeconfig")
+    if not os.path.exists(kubeconfig_path):
+        raise HTTPException(status_code=404, detail=f"Kubeconfig não encontrado para o cluster '{cluster}' no ambiente '{environment}'.")
+
+    try:
+        # Definir o comando com base no tipo de teste
+        if test_type == "http":
+            command = f"curl -kv {url}"
+        elif test_type == "tcp":
+            command = f"curl telnet://{url}"
+        else:
+            raise HTTPException(status_code=400, detail="Tipo de teste inválido. Use 'http' ou 'tcp'.")
+
+        # Executar o comando dentro do pod com timeout de 30 segundos
+        full_command = f"kubectl exec {pod_name} -n {namespace} -- {command}"
+        result = subprocess.run(
+            full_command, shell=True, capture_output=True, text=True, timeout=30
+        )
+
+        # Retornar a saída do comando
+        return {"output": result.stdout or result.stderr}
+
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=408, detail="O teste de conectividade demorou mais de 30 segundos e foi encerrado.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro interno ao executar o teste: {str(e)}")

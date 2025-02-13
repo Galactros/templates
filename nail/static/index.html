@@ -38,6 +38,9 @@
                     <li class="nav-item">
                         <a class="nav-link" href="#" onclick="showForm('pvc')">PVCs</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="showForm('connectivity')">Testar Conectividade</a>
+                    </li>                    
                 </ul>
                 <div class="dropdown">
                     <button class="btn btn-secondary dropdown-toggle" type="button" id="environmentDropdown" data-bs-toggle="dropdown" aria-expanded="false">
@@ -146,7 +149,49 @@
                 </div>
             </form>
             <div id="pvc-result" class="mt-3"></div>
-        </div>        
+        </div> 
+
+        <div id="connectivity-form" class="form-section d-none">
+            <h3>Testar Conectividade</h3>
+            <form id="connectivity-pods-form" class="mb-4">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label for="connectivity-cluster" class="form-label">Cluster</label>
+                        <input type="text" class="form-control" id="connectivity-cluster" placeholder="e.g., cluster1">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="connectivity-namespace" class="form-label">Namespace</label>
+                        <input type="text" class="form-control" id="connectivity-namespace" placeholder="e.g., default">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="connectivity-pod" class="form-label">Pod</label>
+                        <input type="text" class="form-control" id="connectivity-pod" placeholder="e.g., pod-123">
+                    </div>
+                </div>
+                <div class="row g-3 mt-2">
+                    <div class="col-md-6">
+                        <label for="connectivity-url" class="form-label">URL</label>
+                        <input type="text" class="form-control" id="connectivity-url" placeholder="e.g., https://example.com">
+                    </div>
+                    <div class="col-md-6">
+                        <label for="connectivity-test-type" class="form-label">Tipo de Teste</label>
+                        <select class="form-select" id="connectivity-test-type">
+                            <option value="http">HTTP (curl -kv)</option>
+                            <option value="tcp">TCP (curl telnet://)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mt-3 text-end">
+                    <button type="button" class="btn btn-primary" onclick="testConnectivity()">Executar Teste</button>
+                </div>
+            </form>
+            <div class="mt-3">
+                <label for="connectivity-output" class="form-label">Resultado:</label>
+                <textarea id="connectivity-output" class="form-control" rows="5" readonly></textarea>
+                <button class="btn btn-secondary mt-2" onclick="copyToClipboard()">Copiar Resultado</button>
+            </div>
+        </div>
+          
     </div>
 </body>
 </html>

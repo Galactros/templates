@@ -4,8 +4,8 @@ from fastapi.responses import JSONResponse, FileResponse
 from fastapi.background import BackgroundTasks
 from fastapi.staticfiles import StaticFiles
 from kubernetes import client, config
+from kubernetes.stream import stream
 from typing import List, Dict
-import subprocess
 import os
 
 app = FastAPI()
@@ -336,24 +336,34 @@ def test_pod_connectivity(
         raise HTTPException(status_code=404, detail=f"Kubeconfig não encontrado para o cluster '{cluster}' no ambiente '{environment}'.")
 
     try:
+        # Carrega o kubeconfig para o cluster
+        config.load_kube_config(config_file=kubeconfig_path)
+        k8s_client = client.CoreV1Api()
+
         # Definir o comando com base no tipo de teste
         if test_type == "http":
-            command = f"curl -kv {url}"
+            command = ["curl", "-kv", url]
         elif test_type == "tcp":
-            command = f"curl telnet://{url}"
+            command = ["curl", f"telnet://{url}"]
         else:
             raise HTTPException(status_code=400, detail="Tipo de teste inválido. Use 'http' ou 'tcp'.")
 
-        # Executar o comando dentro do pod com timeout de 30 segundos
-        full_command = f"kubectl exec {pod_name} -n {namespace} -- {command}"
-        result = subprocess.run(
-            full_command, shell=True, capture_output=True, text=True, timeout=30
+        # Executa o comando dentro do pod
+        response = stream(
+            k8s_client.connect_get_namespaced_pod_exec,
+            pod_name,
+            namespace,
+            command=command,
+            stderr=True,
+            stdin=False,
+            stdout=True,
+            tty=False,
+            _request_timeout=30  # Tempo máximo de resposta
         )
 
-        # Retornar a saída do comando
-        return {"output": result.stdout or result.stderr}
+        return {"output": response}
 
-    except subprocess.TimeoutExpired:
-        raise HTTPException(status_code=408, detail="O teste de conectividade demorou mais de 30 segundos e foi encerrado.")
+    except client.exceptions.ApiException as e:
+        raise HTTPException(status_code=e.status, detail=f"Erro ao conectar ao pod '{pod_name}': {e.reason}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro interno ao executar o teste: {str(e)}")

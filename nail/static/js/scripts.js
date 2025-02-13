@@ -257,17 +257,8 @@ function testConnectivity() {
     showLoadingSpinner();
 
     $.ajax({
-        url: "/test-connectivity/",
+        url: `/test-connectivity/?environment=${selectedEnvironment}&cluster=${cluster}&namespace=${namespace}&pod_name=${podName}&url=${url}&test_type=${testType}`,
         type: "POST",
-        contentType: "application/json",  // <- Corrigido para JSON
-        data: JSON.stringify({
-            environment: selectedEnvironment,
-            cluster: cluster,
-            namespace: namespace,
-            pod_name: podName,
-            url: url,
-            test_type: testType
-        }),
         success: function(response) {
             $("#connectivity-output").val(response.output);
         },

@@ -48,14 +48,18 @@ function fetchWorkloadPods() {
                     <td>${pod.memory_usage}</td>
                     <td>${pod.cpu_limit}</td>
                     <td>${pod.memory_limit}</td>
-                    <td><button class="btn btn-sm btn-secondary" onclick="downloadPodLogs('${pod.pod_name}')">Download Logs</button></td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" onclick="deletePod('${pod.pod_name}')">Delete</button>
+                        <button class="btn btn-sm btn-secondary" onclick="downloadPodLogs('${pod.pod_name}')">Download Logs</button>
+                    </td>
                 </tr>`;
             });
             resultHtml += '</tbody></table>';
             $("#workload-pods-result").html(resultHtml);
         })
         .fail((err) => {
-            $("#workload-pods-result").html(`<div class="alert alert-danger">${err.responseJSON.error}</div>`);
+            let errorMessage = err.responseJSON && err.responseJSON.error ? err.responseJSON.error : "Erro ao buscar os pods.";
+            $("#workload-pods-result").html(`<div class="alert alert-danger">${errorMessage}</div>`);
         })
         .always(() => {
             hideLoadingSpinner();
@@ -201,4 +205,35 @@ function fetchPVCs() {
         .always(() => {
             hideLoadingSpinner();
         });
+}
+
+function deletePod(podName) {
+    if (!selectedEnvironment) {
+        alert('Please select an environment.');
+        return;
+    }
+    const cluster = $("#cluster").val();
+    const namespace = $("#namespace").val();
+
+    if (!confirm(`Tem certeza que deseja deletar o pod '${podName}'?`)) {
+        return;
+    }
+
+    showLoadingSpinner();
+
+    $.ajax({
+        url: `/delete-pod/?environment=${selectedEnvironment}&cluster=${cluster}&namespace=${namespace}&pod_name=${podName}`,
+        type: 'DELETE',
+        success: function(response) {
+            alert(response.message);
+            fetchWorkloadPods(); // Atualiza a tabela após deletar o pod
+        },
+        error: function(err) {
+            let errorMessage = err.responseJSON && err.responseJSON.detail ? err.responseJSON.detail : "Erro ao deletar o pod.";
+            alert(errorMessage);
+        },
+        complete: function() {
+            hideLoadingSpinner();
+        }
+    });
 }

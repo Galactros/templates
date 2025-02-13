@@ -303,3 +303,24 @@ def list_pvcs(environment: str, cluster: str, namespace: str):
         raise HTTPException(status_code=e.status, detail=f"Erro ao listar PVCs no namespace '{namespace}': {e.reason}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
+
+@app.delete("/delete-pod/")
+def delete_pod(environment: str, cluster: str, namespace: str, pod_name: str):
+    """Deleta um pod específico."""
+    kubeconfig_path = os.path.join(base_kubeconfig_folder, environment, cluster, "kubeconfig")
+    if not os.path.exists(kubeconfig_path):
+        raise HTTPException(status_code=404, detail=f"Kubeconfig não encontrado para o cluster '{cluster}' no ambiente '{environment}'.")
+
+    try:
+        # Carrega o kubeconfig para o cluster
+        config.load_kube_config(config_file=kubeconfig_path)
+        k8s_client = client.CoreV1Api()
+
+        # Deleta o pod
+        k8s_client.delete_namespaced_pod(name=pod_name, namespace=namespace)
+
+        return {"message": f"Pod '{pod_name}' deletado com sucesso no namespace '{namespace}'."}
+    except client.exceptions.ApiException as e:
+        raise HTTPException(status_code=e.status, detail=f"Erro ao deletar pod '{pod_name}': {e.reason}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")

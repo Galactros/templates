@@ -1,4 +1,5 @@
 let selectedEnvironment = '';
+let podToDelete = null;
 
 function setEnvironment(env) {
     selectedEnvironment = env;
@@ -49,7 +50,7 @@ function fetchWorkloadPods() {
                     <td>${pod.cpu_limit}</td>
                     <td>${pod.memory_limit}</td>
                     <td>
-                        <button class="btn btn-sm btn-danger" onclick="deletePod('${pod.pod_name}')">Delete</button>
+                        <button class="btn btn-sm btn-danger" onclick="showDeletePodModal('${pod.pod_name}')">Delete</button>
                         <button class="btn btn-sm btn-secondary" onclick="downloadPodLogs('${pod.pod_name}')">Download Logs</button>
                     </td>
                 </tr>`;
@@ -207,36 +208,53 @@ function fetchPVCs() {
         });
 }
 
-function deletePod(podName) {
+function confirmDeletePod() {
     if (!selectedEnvironment) {
-        alert('Please select an environment.');
+        alert("Por favor, selecione um ambiente.");
         return;
     }
     const cluster = $("#cluster").val();
     const namespace = $("#namespace").val();
 
-    if (!confirm(`Tem certeza que deseja deletar o pod '${podName}'?`)) {
+    if (!podToDelete) {
+        alert("Erro: Nenhum pod selecionado.");
         return;
     }
 
     showLoadingSpinner();
 
     $.ajax({
-        url: `/delete-pod/?environment=${selectedEnvironment}&cluster=${cluster}&namespace=${namespace}&pod_name=${podName}`,
-        type: 'DELETE',
-        success: function(response) {
+        url: `/delete-pod/?environment=${selectedEnvironment}&cluster=${cluster}&namespace=${namespace}&pod_name=${podToDelete}`,
+        type: "DELETE",
+        success: function (response) {
             alert(response.message);
-            fetchWorkloadPods(); // Atualiza a tabela após deletar o pod
+            fetchWorkloadPods(); // Atualiza a lista de pods após a exclusão
         },
-        error: function(err) {
-            let errorMessage = err.responseJSON && err.responseJSON.detail ? err.responseJSON.detail : "Erro ao deletar o pod.";
+        error: function (err) {
+            let errorMessage =
+                err.responseJSON && err.responseJSON.detail
+                    ? err.responseJSON.detail
+                    : "Erro ao deletar o pod.";
             alert(errorMessage);
         },
-        complete: function() {
+        complete: function () {
             hideLoadingSpinner();
-        }
+            $("#deletePodModal").modal("hide"); // Fecha o modal após a ação
+        },
     });
 }
+
+function showDeletePodModal(podName) {
+    podToDelete = podName;
+    $("#deletePodName").text(podName);
+    $("#deletePodModal").modal("show");
+}
+
+// Associar evento ao botão de confirmação no modal
+$("#confirmDeletePod").click(function () {
+    confirmDeletePod();
+});
+
 
 function testConnectivity() {
     if (!selectedEnvironment) {

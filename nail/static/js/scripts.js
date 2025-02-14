@@ -349,23 +349,35 @@ function deleteMultiplePods() {
         alert('Por favor, selecione um ambiente.');
         return;
     }
+
     const cluster = $("#delete-cluster").val();
     const namespace = $("#delete-namespace").val();
     const workload = $("#delete-workload").val();
-    const delay = $("#delete-delay").val() || 0;
+    const delay = parseInt($("#delete-delay").val()) || 0;
 
     if (!namespace) {
         alert("Por favor, informe um namespace.");
         return;
     }
 
-    showLoadingSpinner();
+    // Resetar barra de progresso e status
+    $("#delete-progress-bar").css("width", "0%").attr("aria-valuenow", 0).text("0%");
+    $("#delete-status").text("Buscando pods para deletar...");
 
-    $.ajax({
-        url: `/delete-multiple-pods/?environment=${selectedEnvironment}&cluster=${cluster}&namespace=${namespace}&workload_name=${workload}&delay=${delay}`,
-        type: "DELETE",
-        success: function (response) {
-            let totalPods = response.deleted_pods.length;
+    // Determinar qual endpoint chamar
+    let endpoint = workload
+        ? `/workload-pods/?environment=${selectedEnvironment}&cluster=${cluster}&namespace=${namespace}&workload_name=${workload}`
+        : `/namespace-pods/?environment=${selectedEnvironment}&cluster=${cluster}&namespace=${namespace}`;
+
+    // Buscar a lista de pods para deletar
+    $.get(endpoint)
+        .done((data) => {
+            if (data.length === 0) {
+                $("#delete-status").text("Nenhum pod encontrado para deletar.");
+                return;
+            }
+
+            let totalPods = data.length;
             let deletedCount = 0;
 
             function updateProgress() {
@@ -375,22 +387,30 @@ function deleteMultiplePods() {
                 $("#delete-status").text(`Deletado ${deletedCount} de ${totalPods} pods.`);
             }
 
-            response.deleted_pods.forEach((pod, index) => {
-                setTimeout(() => {
-                    updateProgress();
-                }, index * delay * 1000);
-            });
+            function deleteNextPod(index) {
+                if (index >= totalPods) {
+                    $("#delete-status").text("Todos os pods foram deletados.");
+                    return;
+                }
 
-            alert(response.message);
-        },
-        error: function (err) {
-            let errorMessage = err.responseJSON && err.responseJSON.detail
-                ? err.responseJSON.detail
-                : "Erro ao deletar pods.";
-            alert(errorMessage);
-        },
-        complete: function () {
-            hideLoadingSpinner();
-        }
-    });
+                let podName = data[index].pod_name;
+
+                $.ajax({
+                    url: `/delete-pod/?environment=${selectedEnvironment}&cluster=${cluster}&namespace=${namespace}&pod_name=${podName}`,
+                    type: "DELETE",
+                    success: function () {
+                        updateProgress();
+                    },
+                    complete: function () {
+                        setTimeout(() => deleteNextPod(index + 1), delay * 1000); // Espera o tempo configurado antes de deletar o próximo pod
+                    }
+                });
+            }
+
+            // Iniciar a deleção dos pods um por um
+            deleteNextPod(0);
+        })
+        .fail(() => {
+            $("#delete-status").text("Erro ao buscar pods.");
+        });
 }

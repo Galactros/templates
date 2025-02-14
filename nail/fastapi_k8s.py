@@ -418,3 +418,31 @@ def delete_multiple_pods(
         raise HTTPException(status_code=e.status, detail=f"Erro ao deletar pods: {e.reason}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
+
+@app.get("/namespace-pods/", response_model=List[Dict[str, str]])
+def list_namespace_pods(environment: str, cluster: str, namespace: str):
+    """Retorna todos os pods de um namespace"""
+    kubeconfig_path = os.path.join(base_kubeconfig_folder, environment, cluster, "kubeconfig")
+    if not os.path.exists(kubeconfig_path):
+        raise HTTPException(status_code=404, detail=f"Kubeconfig não encontrado para o cluster '{cluster}' no ambiente '{environment}'.")
+
+    try:
+        # Carrega o kubeconfig para o cluster
+        config.load_kube_config(config_file=kubeconfig_path)
+        k8s_client = client.CoreV1Api()
+
+        # Lista todos os pods no namespace
+        pods = k8s_client.list_namespaced_pod(namespace=namespace)
+
+        if not pods.items:
+            return []
+
+        pod_list = []
+        for pod in pods.items:
+            pod_list.append({"pod_name": pod.metadata.name})
+
+        return pod_list
+    except client.exceptions.ApiException as e:
+        raise HTTPException(status_code=e.status, detail=f"Erro ao listar pods no namespace '{namespace}': {e.reason}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")

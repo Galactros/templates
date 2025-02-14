@@ -7,8 +7,9 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi import Depends
 from kubernetes import client, config
 from kubernetes.stream import stream
-from typing import List, Dict
+from typing import List, Dict, Optional
 import os
+import time
 
 app = FastAPI()
 
@@ -382,3 +383,38 @@ def test_pod_connectivity(
         raise HTTPException(status_code=e.status, detail=f"Erro ao conectar ao pod '{pod_name}': {e.reason}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro interno ao executar o teste: {str(e)}")
+
+@app.delete("/delete-multiple-pods/")
+def delete_multiple_pods(
+    environment: str, cluster: str, namespace: str, workload_name: Optional[str] = None, delay: int = 0
+):
+    """Deleta todos os pods de um namespace ou de um workload específico, com tempo de espera entre as exclusões."""
+    kubeconfig_path = os.path.join(base_kubeconfig_folder, environment, cluster, "kubeconfig")
+    if not os.path.exists(kubeconfig_path):
+        raise HTTPException(status_code=404, detail=f"Kubeconfig não encontrado para o cluster '{cluster}' no ambiente '{environment}'.")
+
+    try:
+        # Carrega o kubeconfig para o cluster
+        config.load_kube_config(config_file=kubeconfig_path)
+        k8s_client = client.CoreV1Api()
+
+        # Lista os pods no namespace
+        label_selector = f"app={workload_name}" if workload_name else ""
+        pods = k8s_client.list_namespaced_pod(namespace=namespace, label_selector=label_selector)
+
+        if not pods.items:
+            return {"message": "Nenhum pod encontrado para deletar."}
+
+        deleted_pods = []
+        for pod in pods.items:
+            pod_name = pod.metadata.name
+            k8s_client.delete_namespaced_pod(name=pod_name, namespace=namespace)
+            deleted_pods.append(pod_name)
+            time.sleep(delay)  # Aguarda o tempo configurado antes de deletar o próximo pod
+
+        return {"message": f"{len(deleted_pods)} pods deletados.", "deleted_pods": deleted_pods}
+
+    except client.exceptions.ApiException as e:
+        raise HTTPException(status_code=e.status, detail=f"Erro ao deletar pods: {e.reason}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")

@@ -343,3 +343,54 @@ function logout() {
     localStorage.removeItem("isLoggedIn");
     checkLogin();
 }
+
+function deleteMultiplePods() {
+    if (!selectedEnvironment) {
+        alert('Por favor, selecione um ambiente.');
+        return;
+    }
+    const cluster = $("#delete-cluster").val();
+    const namespace = $("#delete-namespace").val();
+    const workload = $("#delete-workload").val();
+    const delay = $("#delete-delay").val() || 0;
+
+    if (!namespace) {
+        alert("Por favor, informe um namespace.");
+        return;
+    }
+
+    showLoadingSpinner();
+
+    $.ajax({
+        url: `/delete-multiple-pods/?environment=${selectedEnvironment}&cluster=${cluster}&namespace=${namespace}&workload_name=${workload}&delay=${delay}`,
+        type: "DELETE",
+        success: function (response) {
+            let totalPods = response.deleted_pods.length;
+            let deletedCount = 0;
+
+            function updateProgress() {
+                deletedCount++;
+                let progress = Math.round((deletedCount / totalPods) * 100);
+                $("#delete-progress-bar").css("width", progress + "%").attr("aria-valuenow", progress).text(progress + "%");
+                $("#delete-status").text(`Deletado ${deletedCount} de ${totalPods} pods.`);
+            }
+
+            response.deleted_pods.forEach((pod, index) => {
+                setTimeout(() => {
+                    updateProgress();
+                }, index * delay * 1000);
+            });
+
+            alert(response.message);
+        },
+        error: function (err) {
+            let errorMessage = err.responseJSON && err.responseJSON.detail
+                ? err.responseJSON.detail
+                : "Erro ao deletar pods.";
+            alert(errorMessage);
+        },
+        complete: function () {
+            hideLoadingSpinner();
+        }
+    });
+}

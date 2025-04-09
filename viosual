@@ -1,0 +1,9 @@
+Resources
+| where type == "microsoft.compute/virtualmachines"
+| project 
+    vmName = name, 
+    resourceGroup, 
+    location, 
+    availabilityZone = tostring(properties.zones[0])
+| extend availabilityZone = iff(isnull(availabilityZone), "Sem Zona", availabilityZone)
+| order by location asc, vmName asc
